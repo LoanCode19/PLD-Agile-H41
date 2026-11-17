@@ -103,6 +103,42 @@ Réponse `201 Created` :
 | `404` | Ressource introuvable              |
 | `500` | Erreur serveur                     |
 
+## Formats des fichiers d'entree
+
+### Fichier des livraisons a faire (XML)
+
+Charge par le backend via `livraisons.charger_livraisons(chemin)`.
+
+```xml
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<demandeDeLivraisons>
+    <entrepot adresse="25327124" heureDepart="08:00"/>
+    <livraison adresseEnlevement="26464256" adresseLivraison="239603465"
+               dureeEnlevement="0" dureeLivraison="600"/>
+</demandeDeLivraisons>
+```
+
+| Element / attribut    | Type      | Obligatoire | Remarques                                  |
+|-----------------------|-----------|-------------|--------------------------------------------|
+| `entrepot/adresse`    | entier    | oui         | Identifiant d'intersection de la carte     |
+| `entrepot/heureDepart`| `HH:MM`   | oui         | Heure de depart des coursiers             |
+| `livraison/adresseEnlevement` | entier | oui  | Adresse d'enlevement                      |
+| `livraison/adresseLivraison`  | entier | oui  | Adresse de livraison                      |
+| `livraison/dureeEnlevement`  | entier (secondes) | oui | Doit etre >= 0                |
+| `livraison/dureeLivraison`   | entier (secondes) | oui | Doit etre >= 0                |
+
+## Backend (Python)
+
+- Python >= 3.10
+- Parseur XML : `xml.etree.ElementTree` (bibliotheque standard, aucune dependance externe)
+
+```bash
+cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -m pytest tests/
+```
+
 ## Documentation
 
 - **Chaque nouvelle feature (frontend ou backend) doit documenter les formats d'échange** pour que les deux côtés communiquent correctement :
