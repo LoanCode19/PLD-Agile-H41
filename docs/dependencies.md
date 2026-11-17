@@ -31,4 +31,15 @@ pip install pytest
 
 ## Frontend
 
-Aucune dépendance pour l'instant.
+| Dépendance | Version | Utilisée par | Où                     | Rôle                                  |
+|------------|---------|--------------|------------------------|---------------------------------------|
+| Node.js    | 24      | Front        | -                      | Exécuter npm et Vite                  |
+| vite       | ^8.3.6  | Front        | `frontend/package.json`| Serveur de dev et build du front      |
+
+Installation :
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
