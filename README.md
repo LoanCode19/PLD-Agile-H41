@@ -9,8 +9,11 @@ Guide des bonnes pratiques à respecter sur ce dépôt.
 | `frontend/` | Tout le code du front (interface, composants, appels à l'API...)        |
 | `backend/`  | Tout le code du back (API, logique métier, accès aux données...)        |
 | `docs/`     | Toute la documentation : diagrammes de classes, de séquence, maquettes, comptes rendus, etc. |
+| `ressources/` | Données et fichiers à aller chercher : liste des livraisons à effectuer, coordonnées des intersections, et toutes les ressources graphiques (images, icônes, cartes...) |
 
 Ne pas mélanger : pas de code front dans `backend/`, pas de doc dans `frontend/`, etc.
+
+Le dossier `ressources/` ne contient **pas de code** : seulement des fichiers de données ou graphiques, lus par le front et/ou le back. Si un fichier change de nom, de format ou de structure, le signaler dans la PR et mettre à jour la documentation des formats (voir plus bas), car front et back en dépendent.
 
 ## Workflow Git
 
