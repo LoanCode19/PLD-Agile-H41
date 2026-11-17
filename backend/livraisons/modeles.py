@@ -1,7 +1,6 @@
 """Modeles metier pour une demande de livraisons."""
 
 from dataclasses import dataclass
-from datetime import time
 
 
 @dataclass(frozen=True)
@@ -24,10 +23,11 @@ class DemandeLivraisons:
 
     Attributes:
         adresse_entrepot: identifiant de l'intersection ou se trouve l'entrepot.
-        heure_depart: heure de depart des coursiers depuis l'entrepot.
+        heure_depart: heure de depart des coursiers, en secondes apres
+            minuit (08:00 -> 28800).
         livraisons: tuple des demandes de livraison, dans l'ordre du fichier.
     """
 
     adresse_entrepot: int
-    heure_depart: time
+    heure_depart: int
     livraisons: tuple[Livraison, ...]

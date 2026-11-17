@@ -1,6 +1,5 @@
 """Tests du parseur du fichier XML des livraisons."""
 
-from datetime import time
 from pathlib import Path
 
 import pytest
@@ -20,7 +19,7 @@ class TestChargementValide:
     def test_lit_l_entrepot(self):
         demande = charger_livraisons(CHEMIN_EXEMPLE)
         assert demande.adresse_entrepot == 25327124
-        assert demande.heure_depart == time(8, 0)
+        assert demande.heure_depart == 8 * 3600  # 08:00 en secondes
 
     def test_lit_les_livraisons_dans_l_ordre(self):
         demande = charger_livraisons(CHEMIN_EXEMPLE)
@@ -78,7 +77,7 @@ class TestErreursDeFormat:
         with pytest.raises(FichierLivraisonsInvalide, match="heureDepart.*manquant"):
             charger_livraisons(chemin)
 
-    @pytest.mark.parametrize("heure", ["8h00", "08:60", "08", ""])
+    @pytest.mark.parametrize("heure", ["8h00", "24:00", "08:60", "08", ""])
     def test_heure_depart_invalide(self, tmp_path, heure):
         chemin = ecrire_xml(
             tmp_path,

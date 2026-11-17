@@ -16,15 +16,12 @@ Toute erreur de format leve une :class:`FichierLivraisonsInvalide`
 avec un message lisible, que l'appelant peut transmettre tel quel au front.
 """
 
-import re
 import xml.etree.ElementTree as ET
-from datetime import time
 from pathlib import Path
 
 from .modeles import DemandeLivraisons, Livraison
 
 RACINE_ATTENDEUE = "demandeDeLivraisons"
-FORMAT_HEURE = "HH:MM"
 
 
 class FichierLivraisonsInvalide(Exception):
@@ -56,20 +53,25 @@ def _entier(valeur: str, nom: str, contexte: str) -> int:
     return nombre
 
 
-def _heure(valeur: str, contexte: str) -> time:
-    """Convertit une heure au format HH:MM."""
-    if not re.fullmatch(r"\d{2}:\d{2}", valeur):
+def _heure_en_secondes(valeur: str, contexte: str) -> int:
+    """Convertit une heure 'HH:MM' en secondes apres minuit."""
+    heures_texte, separateur, minutes_texte = valeur.partition(":")
+    if (
+        not separateur
+        or not heures_texte.isdigit()
+        or not minutes_texte.isdigit()
+    ):
         raise FichierLivraisonsInvalide(
             f"{contexte} : 'heureDepart' doit etre une heure au format "
-            f"{FORMAT_HEURE}, recu '{valeur}'"
+            f"HH:MM, recu '{valeur}'"
         )
-    try:
-        return time.fromisoformat(valeur)
-    except ValueError:
+    heures, minutes = int(heures_texte), int(minutes_texte)
+    if heures > 23 or minutes > 59:
         raise FichierLivraisonsInvalide(
             f"{contexte} : 'heureDepart' n'est pas une heure valide, "
             f"recu '{valeur}'"
-        ) from None
+        )
+    return heures * 3600 + minutes * 60
 
 
 def charger_livraisons(chemin: str | Path) -> DemandeLivraisons:
@@ -110,7 +112,7 @@ def charger_livraisons(chemin: str | Path) -> DemandeLivraisons:
         "adresse",
         contexte_entrepot,
     )
-    heure_depart = _heure(
+    heure_depart = _heure_en_secondes(
         _attribut(entrepot, "heureDepart", contexte_entrepot),
         contexte_entrepot,
     )
