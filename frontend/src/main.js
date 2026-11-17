@@ -1,5 +1,4 @@
 import { displayJson } from './display.js';
-import data from './sampleData.json';
 
 document.querySelector('#app').innerHTML = `
   <button id="bouton">Afficher</button>
@@ -11,5 +10,7 @@ const zone = document.getElementById('zone');
 
 // Au clic, on affiche le JSON (en dur pour l'instant)
 bouton.addEventListener('click', () => {
-  displayJson(data, zone);
+    fetch('http://localhost:8000/api/route-graph')
+        .then(response => response.json())
+        .then(data => displayJson(data, zone));
 });
