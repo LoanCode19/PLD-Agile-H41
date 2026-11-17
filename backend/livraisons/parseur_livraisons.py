@@ -118,7 +118,7 @@ def charger_livraisons(chemin: str | Path) -> DemandeLivraisons:
         chemin: chemin vers le fichier XML.
 
     Returns:
-        La demande de livraisons prete a l'emploi.
+        La demande de livraisons.
 
     Raises:
         FichierLivraisonsInvalide: fichier introuvable, XML mal forme,
