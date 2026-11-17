@@ -102,5 +102,9 @@ Réponse `201 Created` :
 
 ## Documentation
 
+- **Chaque nouvelle feature (frontend ou backend) doit documenter les formats d'échange** pour que les deux côtés communiquent correctement :
+  - côté backend : l'URL, la méthode, le format **attendu** en entrée (corps, paramètres) et le format **renvoyé** (réponse + codes d'erreur) ;
+  - côté frontend : ce que le front **envoie** et ce qu'il **attend** en retour.
+  - Cette documentation est ajoutée (ou mise à jour) dans la section « Formats et conventions d'API » ci-dessus ou dans `docs/`, **dans la même PR que la feature**. Une PR qui touche à la communication front/back sans documentation des formats n'est pas mergée.
 - Les diagrammes (classes, séquence, cas d'utilisation...) vont dans `docs/`, avec leur **source éditable** (ex. `.puml`, `.drawio`) en plus de l'export image.
 - Toute évolution du code qui change le modèle doit mettre à jour les diagrammes concernés dans la même PR.
