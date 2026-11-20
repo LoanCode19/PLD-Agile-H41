@@ -5,7 +5,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True, slots=True)
 class Node:
     """Une intersection."""
-    id: str
+    id: int
     latitude: float
     longitude: float
 
@@ -13,8 +13,8 @@ class Node:
 @dataclass(frozen=True, slots=True)
 class Edge:
     """Un tronçon orienté origin -> destination (longueur en mètres)."""
-    origin: str
-    destination: str
+    origin: int
+    destination: int
     length: float
     street_name: str = ""
 
@@ -53,13 +53,13 @@ class RouteGraph:
         tree = ET.parse(xml_file)
         root = tree.getroot()
         for node in root.findall('noeud'):
-            node_id = node.get('id')
+            node_id = int(node.get('id'))
             latitude = float(node.get('latitude'))
             longitude = float(node.get('longitude'))
             self.add_node(node_id, latitude, longitude)
         for edge in root.findall('troncon'):
-            origin = edge.get('origine')
-            destination = edge.get('destination')
+            origin = int(edge.get('origine'))
+            destination = int(edge.get('destination'))
             length = float(edge.get('longueur'))
             street_name = edge.get('nomRue', "")
             self.add_edge(origin, destination, length, street_name)
