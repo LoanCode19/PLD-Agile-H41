@@ -35,6 +35,7 @@ pip install pytest
 |------------|---------|--------------|------------------------|---------------------------------------|
 | Node.js    | 24      | Front        | -                      | Exécuter npm et Vite                  |
 | vite       | ^8.3.6  | Front        | `frontend/package.json`| Serveur de dev et build du front      |
+| leaflet    | ^1.9.4  | Front        | `frontend/src/main.js` | Afficher une carte interactive centrée sur Lyon |
 
 Installation :
 
