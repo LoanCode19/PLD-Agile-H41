@@ -51,9 +51,9 @@ class ShortestPathFinder:
         """
         ordre, horaires = self.held_karp()
         route = [(self.adresse_entrepot, horaires[0][0])]
-        if horaires[0][-1] > HEURE_MAX_RETOUR:
+        if horaires[-1][0] > HEURE_MAX_RETOUR:
             raise ValueError(
-                f"Tournée impossible : retour à l'entrepôt après {horaires[0][-1]} s"
+                f"Tournée impossible : retour à l'entrepôt après {horaires[-1][0]} s"
             )
         for k in range(1, len(ordre)):
             depart = self.arrets[ordre[k - 1]]
@@ -94,16 +94,6 @@ class ShortestPathFinder:
                 relacher(troncon, d)
         self.distances[source] = {c: distance[c] for c in cibles if c in visited}
 
-        ordre, horaires = self.held_karp()
-        route = [(self.adresse_entrepot, horaires[0][0])]
-        for k in range(1, len(ordre)):
-            depart = self.arrets[ordre[k - 1]]
-            arrivee = self.arrets[ordre[k]]
-            for noeud in self._noeuds_entre(depart, arrivee):
-                route.append((noeud, None))  # simple passage
-            route.append((arrivee, horaires[k][0]))
-        return route
-
     def _noeuds_entre(self, depart: int, arrivee: int) -> list[int]:
         """Nœuds traversés entre depart et arrivee (tous deux exclus)."""
         noeuds = []
@@ -141,7 +131,7 @@ class ShortestPathFinder:
             ordre,
             horaires,
         )  # horraires = [(arrivée, départ) de chaque arrêt de l'ordre,
-        # en secondes après minuit, horraire[0][-1] pour l'heure de fin]
+        # en secondes après minuit, horaires[-1][0] pour l'heure de fin]
 
     def _matrice_distances(self) -> list[list[float]]:
         """D[i][j] = distance (m) de l'arrêt i à l'arrêt j."""
@@ -256,18 +246,3 @@ class ShortestPathFinder:
         if est_enlevement:
             return livraison.duree_enlevement
         return livraison.duree_livraison
-
-
-if __name__ == "__main__":
-    from pathlib import Path
-
-    from backend.livraisons.parseur_livraisons import charger_livraisons
-
-    ressources = Path(__file__).resolve().parents[2] / "ressources"
-    graphe = RouteGraph()
-    graphe.construct_from_xml(ressources / "grandPlan.xml")
-    demande = charger_livraisons(ressources / "myDeliverRequest.xml")
-
-    finder = ShortestPathFinder(graphe, demande)
-    print("Arrêts :", finder.arrets)
-    print("Distances :", finder.getAllPointBestRoute())
