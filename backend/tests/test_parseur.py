@@ -7,6 +7,7 @@ import pytest
 from backend.livraisons.parseur_livraisons import FichierLivraisonsInvalide, charger_livraisons
 
 CHEMIN_EXEMPLE = Path(__file__).parent / "data" / "livraisons_exemple.xml"
+CHEMIN_GRAND9 = Path(__file__).parent / "data" / "demandeGrand9.xml"
 
 
 def ecrire_xml(tmp_path: Path, contenu: str) -> Path:
@@ -43,6 +44,37 @@ class TestChargementValide:
         demande = charger_livraisons(chemin)
         assert demande.livraisons == ()
 
+    def test_lit_fichier_format_heure_avec_secondes(self):
+        demande = charger_livraisons(CHEMIN_GRAND9)
+        assert demande.adresse_entrepot == 25327124
+        assert demande.heure_depart == 8 * 3600  # 8:0:0 en secondes
+        assert len(demande.livraisons) == 9
+        premiere = demande.livraisons[0]
+        assert premiere.adresse_enlevement == 26464256
+        assert premiere.adresse_livraison == 239603465
+        assert premiere.duree_enlevement == 0
+        assert premiere.duree_livraison == 600
+
+    def test_heure_depart_format_hh_mm_ss(self, tmp_path):
+        chemin = ecrire_xml(
+            tmp_path,
+            '<demandeDeLivraisons>'
+            '<entrepot adresse="1" heureDepart="9:24:36"/>'
+            '</demandeDeLivraisons>',
+        )
+        demande = charger_livraisons(chemin)
+        assert demande.heure_depart == 9 * 3600 + 24 * 60 + 36
+
+    def test_heure_depart_format_hh_mm_toujours_accepte(self, tmp_path):
+        chemin = ecrire_xml(
+            tmp_path,
+            '<demandeDeLivraisons>'
+            '<entrepot adresse="1" heureDepart="09:24"/>'
+            '</demandeDeLivraisons>',
+        )
+        demande = charger_livraisons(chemin)
+        assert demande.heure_depart == 9 * 3600 + 24 * 60
+
 
 class TestErreursDeFichier:
     def test_fichier_introuvable(self, tmp_path):
@@ -77,7 +109,10 @@ class TestErreursDeFormat:
         with pytest.raises(FichierLivraisonsInvalide, match="heureDepart.*manquant"):
             charger_livraisons(chemin)
 
-    @pytest.mark.parametrize("heure", ["8h00", "24:00", "08:60", "08", ""])
+    @pytest.mark.parametrize(
+        "heure",
+        ["8h00", "24:00", "08:60", "08", "", "24:0:0", "08:00:60", "8:0:0:0"],
+    )
     def test_heure_depart_invalide(self, tmp_path, heure):
         chemin = ecrire_xml(
             tmp_path,

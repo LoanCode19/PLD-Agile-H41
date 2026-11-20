@@ -12,6 +12,9 @@ Format attendu (voir le README) :
                    dureeEnlevement="0" dureeLivraison="600"/>
     </demandeDeLivraisons>
 
+L'attribut ``heureDepart`` de l'entrepot accepte deux formats :
+``HH:MM`` (ex : ``08:00``) ou ``HH:MM:SS`` (ex : ``8:0:0``).
+
 Toute erreur de format leve une :class:`FichierLivraisonsInvalide`
 avec un message lisible, que l'appelant peut transmettre tel quel au front.
 """
@@ -91,24 +94,21 @@ def _entier(valeur: str, nom: str, contexte: str) -> int:
 
 
 def _heure_en_secondes(valeur: str, contexte: str) -> int:
-    """Convertit une heure 'HH:MM' en secondes apres minuit."""
-    heures_texte, separateur, minutes_texte = valeur.partition(":")
-    if (
-        not separateur
-        or not heures_texte.isdigit()
-        or not minutes_texte.isdigit()
-    ):
+    """Convertit une heure 'HH:MM' ou 'HH:MM:SS' en secondes apres minuit."""
+    champs = valeur.split(":")
+    if len(champs) not in (2, 3) or not all(c.isdecimal() for c in champs):
         raise FichierLivraisonsInvalide(
             f"{contexte} : 'heureDepart' doit etre une heure au format "
-            f"HH:MM, recu '{valeur}'"
+            f"HH:MM ou HH:MM:SS, recu '{valeur}'"
         )
-    heures, minutes = int(heures_texte), int(minutes_texte)
-    if heures > 23 or minutes > 59:
+    heures, minutes = int(champs[0]), int(champs[1])
+    secondes = int(champs[2]) if len(champs) == 3 else 0
+    if heures > 23 or minutes > 59 or secondes > 59:
         raise FichierLivraisonsInvalide(
             f"{contexte} : 'heureDepart' n'est pas une heure valide, "
             f"recu '{valeur}'"
         )
-    return heures * 3600 + minutes * 60
+    return heures * 3600 + minutes * 60 + secondes
 
 
 def charger_livraisons(chemin: str | Path) -> DemandeLivraisons:
