@@ -1,0 +1,6 @@
+# Dependances du backend.
+# Le parseur XML utilise xml.etree.ElementTree (bibliotheque standard),
+# aucune dependance externe n'est necessaire pour l'instant.
+
+# Outils de test
+pytest>=8.0
