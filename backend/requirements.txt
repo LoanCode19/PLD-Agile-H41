@@ -2,5 +2,9 @@
 # Le parseur XML utilise xml.etree.ElementTree (bibliotheque standard),
 # aucune dependance externe n'est necessaire pour l'instant.
 
+# API serveur
+fastapi>=0.110
+uvicorn>=0.29
+
 # Outils de test
 pytest>=8.0

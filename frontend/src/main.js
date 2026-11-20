@@ -14,7 +14,7 @@ const zone = document.getElementById('zone');
 
 // Au clic, on affiche le JSON (en dur pour l'instant)
 bouton.addEventListener('click', () => {
-    fetch('http://localhost:8000/api/route-graph')
+    fetch('http://localhost:8080/api/route-graph')
         .then(response => response.json())
         .then(data => displayJson(data, zone));
 });
