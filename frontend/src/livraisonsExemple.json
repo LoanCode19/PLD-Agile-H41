@@ -1,0 +1,21 @@
+
+{
+  "adresseEntrepot": 25327124,
+  "heureDepart": 28800,
+  "livraisons": [
+    {
+      "id": 1,
+      "adresseEnlevement": 26464256,
+      "adresseLivraison": 239603465,
+      "dureeEnlevement": 0,
+      "dureeLivraison": 600
+    },
+    {
+      "id": 2,
+      "adresseEnlevement": 25316567,
+      "adresseLivraison": 20976833,
+      "dureeEnlevement": 300,
+      "dureeLivraison": 420
+    }
+  ]
+}

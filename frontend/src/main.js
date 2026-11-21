@@ -1,3 +1,5 @@
+import { displayLivraisons } from './displayLivraisons.js';
+import livraisonsExemple from './livraisonsExemple.json';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { displayJson } from './display.js';
@@ -7,6 +9,10 @@ document.querySelector('#app').innerHTML = `
   <pre id="zone"></pre>
   <h2>Carte de Lyon</h2>
   <div id="map" style="height: 500px;"></div>
+<section>
+  <h2>Liste des livraisons</h2>
+  <div id="livraisons"></div>
+</section>
 `;
 
 const bouton = document.getElementById('bouton');
@@ -29,3 +35,7 @@ L.tileLayer(
     maxZoom: 19
   }
 ).addTo(map);
+displayLivraisons(
+  livraisonsExemple,
+  document.getElementById('livraisons')
+);
