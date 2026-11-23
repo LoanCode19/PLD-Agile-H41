@@ -24,11 +24,11 @@ def load(tmp_path, content):
 def test_parse_mini_plan(tmp_path):
     g = load(tmp_path, XML_MINI)
     assert g.node_count == 2 and g.edge_count == 1
-    assert g.nodes["1"].latitude == 45.0
-    edge = g.get_connections("1")[0]
-    assert (edge.destination, edge.length, edge.street_name) == ("2", 123.5, "Rue A")
+    assert g.nodes[1].latitude == 45.0
+    edge = g.get_connections(1)[0]
+    assert (edge.destination, edge.length, edge.street_name) == (2, 123.5, "Rue A")
     # tronçon orienté : pas de retour 2 -> 1
-    assert g.get_connections("2") == []
+    assert g.get_connections(2) == []
 
 
 def test_edge_to_unknown_node(tmp_path):
