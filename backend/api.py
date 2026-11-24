@@ -1,11 +1,12 @@
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from livraisons.parseur_livraisons import DemandeLivraisons
 from planification.planification import Planification
 from routeGraph.routeGraph import RouteGraph
 from coursier.coursier import Coursier
+import shutil
 
 RESSOURCES = Path(__file__).resolve().parent.parent / "ressources"
 
@@ -41,7 +42,7 @@ async def get_route_graph():
 async def get_list_livraison():
     return planification.charger_demandes(RESSOURCES / "demandeMoyen5.xml")
 
-
+@app.get("api/")
 @app.get("/api/getTestShortestPath", response_model=Coursier)
 async def get_shortest_path():
     try:
@@ -49,3 +50,32 @@ async def get_shortest_path():
         return planification.coursier
     except ValueError as e:  # aucune demande chargée, adresse inconnue...
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.post("/api/upload-livraisons", response_model=DemandeLivraisons)
+async def upload_livraisons(file: UploadFile = File(...)):
+    try:
+        destination = RESSOURCES / file.filename
+        with destination.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Charge et retourne le modèle DemandeLivraisons parsed par ton parseur
+        return planification.charger_demandes(destination)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'upload des livraisons : {str(e)}")
+
+
+@app.post("/api/upload-carte")
+async def upload_carte(file: UploadFile = File(...)):
+    try:
+        destination = RESSOURCES / file.filename
+        with destination.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        global planification
+        nouvelle_carte = charger_carte(destination)
+        planification = Planification(nouvelle_carte)
+        
+        return {"message": "Fichier de carte uploadé avec succès", "filename": file.filename}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'upload de la carte : {str(e)}")

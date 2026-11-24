@@ -4,6 +4,15 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 document.querySelector('#app').innerHTML = `
+  <div style="margin-bottom: 20px;">
+    <input type="file" id="fileInputLivraison" />
+    <button id="bouton-livraisons">Uploader les livraisons</button>
+    <br><br>
+    <input type="file" id="fileInputCarte" />
+    <button id="bouton-carte">Uploader la carte</button>
+    <p id="statut" style="font-weight: bold; color: #333;"></p>
+  </div>
+
   <button id="bouton-tournees">Afficher les tournées</button>
 
   <div id="zone-tournees"></div>
@@ -16,21 +25,71 @@ document.querySelector('#app').innerHTML = `
   </section>
 `;
 
-// Initialisation de la carte de Lyon
+const fileInputLivraison = document.getElementById('fileInputLivraison');
+const boutonLivraisons = document.getElementById('bouton-livraisons');
+const fileInputCarte = document.getElementById('fileInputCarte');
+const boutonCarte = document.getElementById('bouton-carte');
+const statut = document.getElementById('statut');
+
+boutonLivraisons.addEventListener('click', () => {
+  if (fileInputLivraison.files.length === 0) {
+    statut.textContent = "Veuillez d'abord sélectionner un fichier de livraisons.";
+    return;
+  }
+  const formData = new FormData();
+  formData.append('file', fileInputLivraison.files[0]);
+  
+  statut.textContent = "Upload des livraisons en cours...";
+  fetch('http://localhost:8000/api/upload-livraisons', {
+    method: 'POST',
+    body: formData
+  })
+    .then(response => {
+      if (response.ok) {
+        statut.textContent = "Fichier livraisons uploadé avec succès !";
+      } else {
+        statut.textContent = "Erreur lors de l'upload des livraisons.";
+      }
+    })
+    .catch(error => {
+      statut.textContent = `Erreur réseau : ${error}`;
+    });
+});
+
+boutonCarte.addEventListener('click', () => {
+  if (fileInputCarte.files.length === 0) {
+    statut.textContent = "Veuillez d'abord sélectionner un fichier de carte.";
+    return;
+  }
+  const formData = new FormData();
+  formData.append('file', fileInputCarte.files[0]);
+  
+  statut.textContent = "Upload de la carte en cours...";
+  fetch('http://localhost:8000/api/upload-carte', {
+    method: 'POST',
+    body: formData
+  })
+    .then(response => {
+      if (response.ok) {
+        statut.textContent = "Fichier carte uploadé avec succès !";
+      } else {
+        statut.textContent = "Erreur lors de l'upload de la carte.";
+      }
+    })
+    .catch(error => {
+      statut.textContent = `Erreur réseau : ${error}`;
+    });
+});
+
 const map = L.map('map').setView([45.7640, 4.8357], 13);
 
-// Fond de carte OpenStreetMap
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-// Couche dédiée aux tournées : on peut la vider/redessiner sans toucher
-// au fond de carte.
 const tourneeLayer = L.layerGroup().addTo(map);
 
-// La tournée vient de l'API : on lance la requête à chaque clic pour
-// récupérer un résultat à jour.
 const boutonTournees = document.getElementById('bouton-tournees');
 const zoneTournees = document.getElementById('zone-tournees');
 boutonTournees.addEventListener('click', () => {
