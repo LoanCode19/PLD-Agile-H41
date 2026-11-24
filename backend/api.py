@@ -28,8 +28,8 @@ def charger_carte(chemin: Path) -> RouteGraph:
 
 
 # Une seule planification, gardée en mémoire entre les appels.
-planification = Planification(charger_carte(RESSOURCES / "moyenPlan.xml"))
-planification.charger_demandes(RESSOURCES / "demandeMoyen5.xml") #a enlever pour le test de l'API
+planification = Planification(charger_carte(RESSOURCES / "grandPlan.xml"))
+planification.charger_demandes(RESSOURCES / "demandeGrand9Depassement.xml") #a enlever pour le test de l'API
 
 
 @app.get("/api/route-graph")
