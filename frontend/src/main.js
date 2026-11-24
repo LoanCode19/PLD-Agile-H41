@@ -2,12 +2,9 @@ import { displayLivraisons } from './displayLivraisons.js';
 import { displayTournees } from './displayTournees.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { displayJson } from './display.js';
 
 document.querySelector('#app').innerHTML = `
-  <button id="bouton">Afficher</button>
   <button id="bouton-tournees">Afficher les tournées</button>
-  <pre id="zone"></pre>
 
   <div id="zone-tournees"></div>
   <h2>Carte de Lyon</h2>
@@ -31,18 +28,6 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // Couche dédiée aux tournées : on peut la vider/redessiner sans toucher
 // au fond de carte.
 const tourneeLayer = L.layerGroup().addTo(map);
-
-document.getElementById('bouton').addEventListener('click', async () => {
-  try {
-    const response = await fetch('http://localhost:8080/api/route-graph');
-    const data = await response.json();
-
-    displayJson(data, document.getElementById('zone'));
-  } catch (error) {
-    document.getElementById('zone').textContent =
-      `Erreur : ${error.message}`;
-  }
-});
 
 // La tournée vient de l'API : on lance la requête à chaque clic pour
 // récupérer un résultat à jour.
