@@ -31,8 +31,13 @@ class Livraison:
 
     Les adresses sont des identifiants d'intersections de la carte.
     Les durees sont exprimees en secondes.
+
+    Attributes:
+        id: numero unique de la livraison, attribue a sa creation (le parseur
+            numerote les livraisons du fichier a partir de 1).
     """
 
+    id: int
     adresse_enlevement: int
     adresse_livraison: int
     duree_enlevement: int
@@ -159,6 +164,7 @@ def charger_livraisons(chemin: str | Path) -> DemandeLivraisons:
         contexte = f"Livraison {index}"
         livraisons.append(
             Livraison(
+                id=index,
                 adresse_enlevement=_entier(
                     _attribut(element, "adresseEnlevement", contexte),
                     "adresseEnlevement",
