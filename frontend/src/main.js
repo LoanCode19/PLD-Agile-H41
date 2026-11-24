@@ -21,12 +21,6 @@ document.querySelector('#app').innerHTML = `
 const bouton = document.getElementById('bouton');
 const zone = document.getElementById('zone');
 
-// Au clic, on affiche le JSON (en dur pour l'instant)
-bouton.addEventListener('click', () => {
-    fetch('http://localhost:8080/api/route-graph')
-        .then(response => response.json())
-        .then(data => displayJson(data, zone));
-});
 
 // La tournée vient de l'API : on lance la requête à chaque clic pour
 // récupérer un résultat à jour.
@@ -47,10 +41,6 @@ const map = L.map('map').setView([45.7640, 4.8357], 13);
 // Couche dédiée aux tournées : on peut la vider/redessiner sans toucher
 // au fond de carte.
 const tourneeLayer = L.layerGroup().addTo(map);
-
-boutonTournees.addEventListener('click', () => {
-    displayTournees(demandeTournees, tourneeLayer, zoneTournees);
-});
 
 // Fond de carte OpenStreetMap
 L.tileLayer(
