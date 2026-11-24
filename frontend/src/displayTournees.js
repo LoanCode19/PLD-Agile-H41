@@ -1,42 +1,54 @@
 import L from 'leaflet';
 import { formatTime } from './displayLivraisons.js';
 
-// Icônes de colis issues de Tabler Icons (https://tabler.io/icons, licence MIT) :
-// "package-export" pour l'enlèvement, "package-import" pour la livraison.
-// Les deux dessinent le même colis, seule la flèche change.
-// stroke="currentColor" : le trait prend la couleur CSS du parent (celle du coursier).
+// Icônes issues de Tabler Icons (https://tabler.io/icons, licence MIT) :
+// "package-export" pour l'enlèvement, "package-import" pour la livraison,
+// "building-warehouse" pour l'entrepôt.
+// Les deux icônes de colis dessinent le même colis, seule la flèche change.
 const SVG_COLIS =
   '<path d="M12 21l-8 -4.5v-9l8 -4.5l8 4.5v4.5" />' +
   '<path d="M12 12l8 -4.5" /><path d="M12 12v9" /><path d="M12 12l-8 -4.5" />';
-const FLECHE_SORTANTE = '<path d="M15 18h7" /><path d="M19 15l3 3l-3 3" />';
-const FLECHE_ENTRANTE = '<path d="M22 18h-7" /><path d="M18 15l-3 3l3 3" />';
+const ENLEVEMENT = '<path d="M15 18h7" /><path d="M19 15l3 3l-3 3" />'; // flèche sortante
+const LIVRAISON = '<path d="M22 18h-7" /><path d="M18 15l-3 3l3 3" />';  // flèche entrante
+const SVG_ENTREPOT =
+  '<path d="M3 21v-13l9 -4l9 4v13" /><path d="M13 13h4v8h-10v-6h6" />' +
+  '<path d="M13 21v-9a1 1 0 0 0 -1 -1h-2a1 1 0 0 0 -1 1v3" />';
 
-function svgColis(fleche) {
+// Renvoie le <svg> de l'icône selon le type du point :
+// "enlevement", "livraison", sinon l'entrepôt.
+// stroke="currentColor" : le trait prend la couleur CSS du parent.
+function svgIcone(type) {
+  let traces;
+  if (type === 'enlevement') traces = SVG_COLIS + ENLEVEMENT;
+  else if (type === 'livraison') traces = SVG_COLIS + LIVRAISON;
+  else traces = SVG_ENTREPOT;
+
   return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
     'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-    SVG_COLIS + fleche + '</svg>';
+    traces + '</svg>';
 }
 
 // Marqueur d'un enlèvement ou d'une livraison : l'icône de colis dans un rond
 // blanc bordé de la couleur du coursier (le fond blanc la rend lisible sur la carte).
 function iconeArret(type, couleur) {
-  const fleche = type === 'enlevement' ? FLECHE_SORTANTE : FLECHE_ENTRANTE;
   return L.divIcon({
     className: '', // sinon Leaflet ajoute un carré blanc par défaut
-    html: `<div style="width:28px;height:28px;background:#fff;color:${couleur};border:2px solid ${couleur};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 4px rgba(0,0,0,.4);">${svgColis(fleche)}</div>`,
+    html: `<div style="width:28px;height:28px;background:#fff;color:${couleur};border:2px solid ${couleur};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 4px rgba(0,0,0,.4);">${svgIcone(type)}</div>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
     popupAnchor: [0, -14],
   });
 }
 
-// Marqueur "E" pour l'entrepôt, bien distinct des épingles.
+// Marqueur de l'entrepôt : carré au fond sombre et icône blanche, l'inverse
+// des arrêts (rond blanc, icône colorée) pour qu'il ressorte sur la carte.
+// Le bleu nuit ne fait pas partie des couleurs des coursiers.
 const iconeEntrepot = L.divIcon({
-  className: 'icone-entrepot',
-  html: '<div style="width:26px;height:26px;background:#1a1a2e;color:#fff;border:2px solid #fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:bold;box-shadow:0 0 6px rgba(0,0,0,.5);">E</div>',
-  iconSize: [26, 26],
-  iconAnchor: [13, 13],
-  popupAnchor: [0, -14],
+  className: '',
+  html: `<div style="width:30px;height:30px;background:#1a1a2e;color:#fff;border:2px solid #fff;border-radius:6px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 6px rgba(0,0,0,.5);">${svgIcone('entrepot')}</div>`,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+  popupAnchor: [0, -16],
 });
 
 // Une couleur par coursier (on reboucle si on dépasse la liste).
