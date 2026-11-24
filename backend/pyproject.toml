@@ -1,10 +1,7 @@
 # Configuration pytest du backend.
-# "pythonpath" ajoute ces dossiers au chemin de recherche des modules
-# lors des tests. Les deux entrees couvrent tous les contextes :
-# - "." : lancement depuis backend/ (rootdir = backend/)
-# - "backend" : lancement depuis la racine du projet
-#   (VS Code / IDE, dont le rootdir est la racine du depot)
+# "pythonpath" ajoute ce dossier au chemin de recherche des modules
+# lors des tests (lancement depuis backend/).
 
 [tool.pytest.ini_options]
-pythonpath = [".", "backend"]
+pythonpath = ["."]
 testpaths = ["tests"]
