@@ -62,6 +62,7 @@ Le dossier `ressources/` ne contient **pas de code** : seulement des fichiers de
 | `GET`   | `/api/exemples`    | Liste des exemples         | -                | `200` + liste  |
 | `GET`   | `/api/exemples/{id}` | Détail d'un exemple      | -                | `200` + objet  |
 | `POST`  | `/api/exemples`    | Crée un exemple            | voir ci-dessous  | `201` + objet  |
+| `POST`  | `/api/livreurs`    | Valide une liste de livreurs | `{ "livreurs": ["Marie", "Lucas"] }` | `201` + même objet |
 
 *(Remplacer les lignes d'exemple par les vrais endpoints.)*
 
