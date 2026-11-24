@@ -2,7 +2,6 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
 from livraisons.parseur_livraisons import DemandeLivraisons
 from planification.planification import Planification
 from routeGraph.routeGraph import RouteGraph
@@ -45,6 +44,7 @@ async def get_list_livraison():
 @app.get("/api/getTestShortestPath", response_model=Tournee)
 async def get_shortest_path():
     try:
-        return planification.calculer_tournee()
+        planification.calculer_tournee()
+        return planification.coursier
     except ValueError as e:  # aucune demande chargée, adresse inconnue...
         raise HTTPException(status_code=400, detail=str(e)) from e

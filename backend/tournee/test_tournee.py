@@ -1,7 +1,7 @@
 """Tests de Tournee et Passage."""
 
-from backend.livraisons.parseur_livraisons import Livraison
-from backend.tournee.tournee import Passage, Tournee, TypeArret
+from livraisons.parseur_livraisons import Livraison
+from tournee.tournee import Passage, Tournee, TypeArret
 
 LIVRAISON = Livraison(1, 2, 3, 60, 120)
 

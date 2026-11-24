@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from backend.routeGraph.routeGraph import RouteGraph
+from routeGraph.routeGraph import RouteGraph
 
 RESSOURCES = os.path.join(os.path.dirname(__file__), "..", "..", "ressources")
 

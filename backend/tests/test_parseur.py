@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.livraisons.parseur_livraisons import FichierLivraisonsInvalide, charger_livraisons
+from livraisons.parseur_livraisons import FichierLivraisonsInvalide, charger_livraisons
 
 CHEMIN_EXEMPLE = Path(__file__).parent / "data" / "livraisons_exemple.xml"
 CHEMIN_GRAND9 = Path(__file__).parent / "data" / "demandeGrand9.xml"

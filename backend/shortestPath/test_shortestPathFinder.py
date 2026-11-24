@@ -1,7 +1,7 @@
 """Tests de ShortestPathFinder.
 
 Depuis la racine du dépôt (-s pour voir les temps affichés) :
-    python -m pytest backend/shorstestPath -s
+    python -m pytest shortestPath -s
 """
 
 import functools
@@ -12,19 +12,18 @@ import time
 from pathlib import Path
 
 import pytest
-
-from backend.livraisons.parseur_livraisons import (
+from livraisons.parseur_livraisons import (
     DemandeLivraisons,
     Livraison,
     charger_livraisons,
 )
-from backend.routeGraph.routeGraph import RouteGraph
-from backend.shortestPath.shortestPathFinder import (
+from routeGraph.routeGraph import RouteGraph
+from shortestPath.shortestPathFinder import (
     HEURE_MAX_RETOUR,
     VITESSE_LIVREUR,
     ShortestPathFinder,
 )
-from backend.tournee.tournee import Passage, TypeArret
+from tournee.tournee import Passage, TypeArret
 
 RESSOURCES = Path(__file__).resolve().parents[2] / "ressources"
 HEURE_DEPART = 8 * 3600
@@ -35,7 +34,7 @@ LIMITE_PERF_S = 3.0
 
 
 def hms(secondes: float) -> str:
-    s = int(round(secondes))
+    s = round(secondes)
     return f"{s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d}"
 
 
@@ -189,7 +188,9 @@ def test_petits_fichiers_contre_force_brute(plan, nom_demande, tmp_path):
     )
     tournee = finder.calculer_tournee()
     attendu = heure_retour_force_brute(finder)
-    print(f"\n{nom_demande} : retour {hms(tournee.heure_retour)} (attendu {hms(attendu)})")
+    print(
+        f"\n{nom_demande} : retour {hms(tournee.heure_retour)} (attendu {hms(attendu)})"
+    )
     assert tournee.heure_retour == pytest.approx(attendu)
 
 
@@ -202,7 +203,9 @@ def test_perf_gros_fichiers(plan, nom_demande, tmp_path):
     tournee = ShortestPathFinder(g, demande).calculer_tournee()
     duree = time.perf_counter() - debut
 
-    print(f"\n{nom_demande} : retour {hms(tournee.heure_retour)} | calcul {duree:.2f} s")
+    print(
+        f"\n{nom_demande} : retour {hms(tournee.heure_retour)} | calcul {duree:.2f} s"
+    )
     assert tournee.chemin[-1].adresse == demande.adresse_entrepot
     assert duree < LIMITE_PERF_S
 
