@@ -1,5 +1,57 @@
 # PLD Agile - H41
 
+## Démarrage rapide
+
+### Prérequis
+
+- **Python >= 3.11** (le code utilise `enum.StrEnum`)
+- **Node.js >= 20** et `npm` (pour Vite 8)
+
+### 1. Installer les dépendances (une seule fois)
+
+Backend — toutes les dépendances Python sont dans `backend/requirements.txt` (`fastapi`, `uvicorn`, `pytest`) :
+
+```bash
+cd backend
+python -m venv .venv
+
+# Activer l'environnement virtuel
+.venv\Scripts\activate          # Windows (PowerShell / cmd)
+source .venv/bin/activate        # macOS / Linux
+
+pip install -r requirements.txt
+```
+
+Frontend — les dépendances (`vite`, `leaflet`) sont dans `frontend/package.json` :
+
+```bash
+cd frontend
+npm install
+```
+
+### 2. Lancer les serveurs
+
+Ouvrir deux terminaux (avec le venv activé pour le backend) :
+
+```bash
+# terminal 1 — backend (API sur http://localhost:8080)
+cd backend
+python -m uvicorn api:app --reload --port 8080
+
+# terminal 2 — frontend
+cd frontend
+npm run dev        # puis ouvrir http://localhost:5173 dans le navigateur
+```
+
+### 3. Lancer les tests
+
+```bash
+cd backend
+python -m pytest
+```
+
+---
+
 Guide des bonnes pratiques à respecter sur ce dépôt.
 
 ## Structure du dépôt
@@ -40,7 +92,7 @@ Le dossier `ressources/` ne contient **pas de code** : seulement des fichiers de
 
 ### Généralités
 
-- Base URL (dev) : `http://localhost:8080/api`  *(à adapter)*
+- Base URL (dev) : `http://localhost:8080/api`
 - Format d'échange : **JSON** (`Content-Type: application/json`)
 - Noms des champs JSON en `camelCase`
 - Dates au format **ISO 8601** (`2026-11-17T14:30:00`)
@@ -57,41 +109,43 @@ Le dossier `ressources/` ne contient **pas de code** : seulement des fichiers de
 
 ### Endpoints
 
-| Méthode | URL                | Description                | Corps de requête | Réponse        |
-|---------|--------------------|----------------------------|------------------|----------------|
-| `GET`   | `/api/exemples`    | Liste des exemples         | -                | `200` + liste  |
-| `GET`   | `/api/exemples/{id}` | Détail d'un exemple      | -                | `200` + objet  |
-| `POST`  | `/api/exemples`    | Crée un exemple            | voir ci-dessous  | `201` + objet  |
+| Méthode | URL                          | Description                                                                 | Corps de requête | Réponse                                   |
+|---------|------------------------------|-----------------------------------------------------------------------------|------------------|-------------------------------------------|
+| `GET`   | `/api/route-graph`           | Graphe de la carte chargée (intersections + tronçons)                       | -                | `200` + `RouteGraph`                      |
+| `GET`   | `/api/getTestListLivraison`  | *(test)* Charge `ressources/demandeMoyen5.xml` et renvoie la demande        | -                | `200` + `DemandeLivraisons`               |
+| `GET`   | `/api/getTestShortestPath`   | *(test)* Calcule la tournée pour la demande chargée et renvoie le coursier  | -                | `200` + `Coursier`, `400` si erreur       |
 
-*(Remplacer les lignes d'exemple par les vrais endpoints.)*
 
-### Exemple de requête / réponse
 
-`POST /api/exemples`
+### Exemple de réponse
 
-```json
-{
-  "nom": "Exemple",
-  "dateCreation": "2026-11-17T14:30:00"
-}
-```
-
-Réponse `201 Created` :
+`GET /api/getTestListLivraison`
 
 ```json
 {
-  "id": 1,
-  "nom": "Exemple",
-  "dateCreation": "2026-11-17T14:30:00"
+  "adresse_entrepot": 25327124,
+  "heure_depart": 28800,
+  "livraisons": [
+    {
+      "id": 1,
+      "adresse_enlevement": 26464256,
+      "adresse_livraison": 239603465,
+      "duree_enlevement": 0,
+      "duree_livraison": 600
+    }
+  ]
 }
 ```
+
+`heure_depart` est en secondes après minuit (08:00 → 28800), les durées en secondes.
 
 ### Format des erreurs
 
+Les erreurs sont levées via `HTTPException` de FastAPI, qui renvoie :
+
 ```json
 {
-  "status": 400,
-  "message": "Description lisible de l'erreur"
+  "detail": "Description lisible de l'erreur"
 }
 ```
 
@@ -121,23 +175,12 @@ Charge par le backend via `livraisons.charger_livraisons(chemin)`.
 | Element / attribut    | Type      | Obligatoire | Remarques                                  |
 |-----------------------|-----------|-------------|--------------------------------------------|
 | `entrepot/adresse`    | entier    | oui         | Identifiant d'intersection de la carte     |
-| `entrepot/heureDepart`| `HH:MM`   | oui         | Heure de depart des coursiers             |
+| `entrepot/heureDepart`| `HH:MM` ou `HH:MM:SS` | oui | Heure de depart des coursiers (ex. `08:00` ou `8:0:0`) |
 | `livraison/adresseEnlevement` | entier | oui  | Adresse d'enlevement                      |
 | `livraison/adresseLivraison`  | entier | oui  | Adresse de livraison                      |
 | `livraison/dureeEnlevement`  | entier (secondes) | oui | Doit etre >= 0                |
 | `livraison/dureeLivraison`   | entier (secondes) | oui | Doit etre >= 0                |
 
-## Backend (Python)
-
-- Python >= 3.10
-- Parseur XML : `xml.etree.ElementTree` (bibliotheque standard, aucune dependance externe)
-
-```bash
-cd backend
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python -m pytest tests/
-```
 
 ## Documentation
 
