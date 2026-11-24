@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.livraisons.parseur_livraisons import charger_livraisons
+from backend.livraisons.parseur_livraisons import DemandeLivraisons, charger_livraisons
 from backend.routeGraph.routeGraph import RouteGraph
 from backend.shortestPath.shortestPathFinder import ShortestPathFinder
 
@@ -21,14 +21,14 @@ app.add_middleware(
 )
 
 
-@app.get("/api/route-graph")
+@app.get("/api/route-graph", response_model=RouteGraph)
 async def get_route_graph():
     graph = RouteGraph()
     graph.construct_from_xml(RESSOURCES / "grandPlan.xml")
     return {graph}
 
 
-@app.get("/api/getTestListLivraison")
+@app.get("/api/getTestListLivraison", response_model=DemandeLivraisons)
 async def get_list_livraison():
     return {"deliveries": charger_livraisons(RESSOURCES / "demandeGrand9.xml")}
 
