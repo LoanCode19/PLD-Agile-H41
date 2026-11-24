@@ -30,10 +30,13 @@ function svgIcone(type) {
 
 // Marqueur d'un enlèvement ou d'une livraison : l'icône de colis dans un rond
 // blanc bordé de la couleur du coursier (le fond blanc la rend lisible sur la carte).
-function iconeArret(type, couleur) {
+// Une pastille en haut à droite affiche le numéro de la livraison :
+// l'enlèvement et la livraison d'une même paire ont le même numéro.
+function iconeArret(type, couleur, numero) {
+  const pastille = `<span style="position:absolute;top:-8px;right:-10px;min-width:16px;padding:0 3px;background:${couleur};color:#fff;border-radius:8px;font-size:11px;font-weight:bold;line-height:16px;text-align:center;">${numero}</span>`;
   return L.divIcon({
     className: '', // sinon Leaflet ajoute un carré blanc par défaut
-    html: `<div style="width:28px;height:28px;background:#fff;color:${couleur};border:2px solid ${couleur};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 4px rgba(0,0,0,.4);">${svgIcone(type)}</div>`,
+    html: `<div style="position:relative;width:28px;height:28px;background:#fff;color:${couleur};border:2px solid ${couleur};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 4px rgba(0,0,0,.4);">${svgIcone(type)}${pastille}</div>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
     popupAnchor: [0, -14],
@@ -118,7 +121,7 @@ export function displayTournees(data, coucheTournees, zone) {
         entrepotAffiche = true;
       }
 
-      const icone = estEntrepot ? iconeEntrepot : iconeArret(point.type, couleur);
+      const icone = estEntrepot ? iconeEntrepot : iconeArret(point.type, couleur, point.livraison.id);
       const marqueur = L.marker([point.latitude, point.longitude], { icon: icone });
 
       marqueur.bindPopup(contenuPopup(point, coursier, estEntrepot));
@@ -131,7 +134,7 @@ export function displayTournees(data, coucheTournees, zone) {
 function contenuPopup(point, coursier, estEntrepot) {
   const lignes = [`<b>${point.type.toUpperCase()}</b>`];
   if (!estEntrepot) lignes.push(`Coursier ${coursier.nom}`);
-  if (point.livraison) lignes.push(`Livraison id #${point.livraison.id}`);
+  if (point.livraison) lignes.push(`Livraison ${point.livraison.id}`);
   lignes.push(`Latitude : ${point.latitude}`);
   lignes.push(`Longitude : ${point.longitude}`);
   lignes.push(`Adresse : ${point.adresse}`);
