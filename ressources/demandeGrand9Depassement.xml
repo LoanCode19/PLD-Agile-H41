@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Mêmes adresses que demandeGrand9.xml (grandPlan.xml), mais chaque arrêt
+     dure 30 min : 9 livraisons x 2 arrêts x 30 min = 9 h sur place, le
+     coursier parti à 8h rentre forcément après 13h (depasse_heure_max). -->
+<demandeDeLivraisons>
+<entrepot adresse="25327124" heureDepart="08:00"/>
+<livraison adresseEnlevement="26464256" adresseLivraison="239603465" dureeEnlevement="1800" dureeLivraison="1800"/>
+<livraison adresseEnlevement="25319255" adresseLivraison="1370403192" dureeEnlevement="1800" dureeLivraison="1800"/>
+<livraison adresseEnlevement="984553611" adresseLivraison="1368674802" dureeEnlevement="1800" dureeLivraison="1800"/>
+<livraison adresseEnlevement="1678996781" adresseLivraison="26084216" dureeEnlevement="1800" dureeLivraison="1800"/>
+<livraison adresseEnlevement="1301805013" adresseLivraison="25310896" dureeEnlevement="1800" dureeLivraison="1800"/>
+<livraison adresseEnlevement="59654812" adresseLivraison="25316399" dureeEnlevement="1800" dureeLivraison="1800"/>
+<livraison adresseEnlevement="130144280" adresseLivraison="25499154" dureeEnlevement="1800" dureeLivraison="1800"/>
+<livraison adresseEnlevement="26035105" adresseLivraison="25624158" dureeEnlevement="1800" dureeLivraison="1800"/>
+<livraison adresseEnlevement="1362204817" adresseLivraison="843129906" dureeEnlevement="1800" dureeLivraison="1800"/>
+</demandeDeLivraisons>
