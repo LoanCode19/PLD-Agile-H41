@@ -9,7 +9,7 @@
 
 ### 1. Installer les dépendances (une seule fois)
 
-Backend — toutes les dépendances Python sont dans `backend/requirements.txt` (`fastapi`, `uvicorn`, `python-multipart` pour l'upload de fichiers, `pytest`) :
+Backend — toutes les dépendances Python sont dans `backend/requirements.txt` (`fastapi`, `uvicorn`, `python-multipart` pour l'upload de fichiers, `pytest` et `httpx` pour les tests) :
 
 ```bash
 cd backend
