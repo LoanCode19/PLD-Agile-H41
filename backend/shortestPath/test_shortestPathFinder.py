@@ -1,7 +1,7 @@
 """Tests de ShortestPathFinder.
 
 Depuis la racine du dépôt (-s pour voir les temps affichés) :
-    python -m pytest backend/shorstestPath -s
+    python -m pytest backend/shortestPath -s
 """
 
 import functools

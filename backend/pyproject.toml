@@ -4,4 +4,6 @@
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["tests"]
+testpaths = ["."]
+# importlib : plusieurs dossiers ont des tests sans __init__.py
+addopts = "--import-mode=importlib"
