@@ -3,17 +3,19 @@ import { displayTournees } from './displayTournees.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+const API = 'http://localhost:8080/api';
+
 document.querySelector('#app').innerHTML = `
   <div style="margin-bottom: 20px;">
-    <input type="file" id="fileInputLivraison" />
-    <button id="bouton-livraisons">Uploader les livraisons</button>
-    <br><br>
-    <input type="file" id="fileInputCarte" />
+    1. <input type="file" id="fileInputCarte" accept=".xml" />
     <button id="bouton-carte">Uploader la carte</button>
-    <p id="statut" style="font-weight: bold; color: #333;"></p>
+    <br><br>
+    2. <input type="file" id="fileInputLivraison" accept=".xml" />
+    <button id="bouton-livraisons" disabled>Uploader les livraisons</button>
+    <p id="statut" style="font-weight: bold; color: #333;">Commencez par uploader une carte.</p>
   </div>
 
-  <button id="bouton-tournees">Afficher les tournées</button>
+  <button id="bouton-tournees" disabled>Afficher les tournées</button>
 
   <div id="zone-tournees"></div>
   <h2>Carte de Lyon</h2>
@@ -21,65 +23,18 @@ document.querySelector('#app').innerHTML = `
 
   <section>
     <h2>Liste des livraisons</h2>
-    <div id="livraisons"></div>
+    <div id="livraisons">Aucune livraison chargée.</div>
   </section>
 `;
 
-const fileInputLivraison = document.getElementById('fileInputLivraison');
-const boutonLivraisons = document.getElementById('bouton-livraisons');
 const fileInputCarte = document.getElementById('fileInputCarte');
 const boutonCarte = document.getElementById('bouton-carte');
+const fileInputLivraison = document.getElementById('fileInputLivraison');
+const boutonLivraisons = document.getElementById('bouton-livraisons');
+const boutonTournees = document.getElementById('bouton-tournees');
 const statut = document.getElementById('statut');
-
-boutonLivraisons.addEventListener('click', () => {
-  if (fileInputLivraison.files.length === 0) {
-    statut.textContent = "Veuillez d'abord sélectionner un fichier de livraisons.";
-    return;
-  }
-  const formData = new FormData();
-  formData.append('file', fileInputLivraison.files[0]);
-  
-  statut.textContent = "Upload des livraisons en cours...";
-  fetch('http://localhost:8080/api/upload-livraisons', {
-    method: 'POST',
-    body: formData
-  })
-    .then(response => {
-      if (response.ok) {
-        statut.textContent = "Fichier livraisons uploadé avec succès !";
-      } else {
-        statut.textContent = "Erreur lors de l'upload des livraisons.";
-      }
-    })
-    .catch(error => {
-      statut.textContent = `Erreur réseau : ${error}`;
-    });
-});
-
-boutonCarte.addEventListener('click', () => {
-  if (fileInputCarte.files.length === 0) {
-    statut.textContent = "Veuillez d'abord sélectionner un fichier de carte.";
-    return;
-  }
-  const formData = new FormData();
-  formData.append('file', fileInputCarte.files[0]);
-  
-  statut.textContent = "Upload de la carte en cours...";
-  fetch('http://localhost:8080/api/upload-carte', {
-    method: 'POST',
-    body: formData
-  })
-    .then(response => {
-      if (response.ok) {
-        statut.textContent = "Fichier carte uploadé avec succès !";
-      } else {
-        statut.textContent = "Erreur lors de l'upload de la carte.";
-      }
-    })
-    .catch(error => {
-      statut.textContent = `Erreur réseau : ${error}`;
-    });
-});
+const zoneTournees = document.getElementById('zone-tournees');
+const zoneLivraisons = document.getElementById('livraisons');
 
 // Initialisation de la carte de Lyon
 const map = L.map('map').setView([45.7640, 4.8357], 13);
@@ -94,40 +49,72 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // au fond de carte.
 const tourneeLayer = L.layerGroup().addTo(map);
 
-// La tournée vient de l'API : on lance la requête à chaque clic pour
-// récupérer un résultat à jour.
-const boutonTournees = document.getElementById('bouton-tournees');
-const zoneTournees = document.getElementById('zone-tournees');
-boutonTournees.addEventListener('click', () => {
-  fetch('http://localhost:8080/api/getTestShortestPath')
-    .then(response => response.json())
-    .then(data => displayTournees(data, tourneeLayer, zoneTournees))
-    .catch(() => {
-      zoneTournees.textContent =
-        'Erreur : impossible de contacter l\'API (backend démarré ?)';
-    });
-});
+// Efface la tournée affichée (elle n'est plus valable si un fichier change).
+function effacerTournee() {
+  tourneeLayer.clearLayers();
+  zoneTournees.replaceChildren();
+}
 
-async function loadLivraisons() {
-  const zone = document.getElementById('livraisons');
+// Envoie le fichier choisi dans `input` à l'API (champ "file").
+// Renvoie le JSON de la réponse, ou null en cas d'erreur (affichée dans le statut).
+async function uploader(input, url) {
+  if (input.files.length === 0) {
+    statut.textContent = "Veuillez d'abord sélectionner un fichier.";
+    return null;
+  }
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  statut.textContent = 'Upload en cours...';
 
   try {
-    const response = await fetch(
-      'http://127.0.0.1:8080/api/getTestListLivraison'
-    );
-
+    const response = await fetch(url, { method: 'POST', body: formData });
     const data = await response.json();
-
     if (!response.ok) {
-      displayLivraisons(data, zone);
-      return;
+      statut.textContent = `Erreur : ${data.detail}`;
+      return null;
     }
-
-    displayLivraisons(data, zone);
+    return data;
   } catch (error) {
-    zone.textContent =
-      `Erreur lors du chargement des livraisons : ${error.message}`;
+    statut.textContent = `Erreur : impossible de contacter l'API (backend démarré ?)`;
+    return null;
   }
 }
 
-loadLivraisons();
+// 1. Carte : une nouvelle carte oublie les livraisons précédentes.
+boutonCarte.addEventListener('click', async () => {
+  const data = await uploader(fileInputCarte, `${API}/upload-carte`);
+  if (!data) return;
+
+  effacerTournee();
+  zoneLivraisons.textContent = 'Aucune livraison chargée.';
+  boutonLivraisons.disabled = false;
+  boutonTournees.disabled = true;
+  statut.textContent =
+    `Carte chargée (${data.intersections} intersections). Uploadez maintenant les livraisons.`;
+});
+
+// 2. Livraisons : affichées en bas de la page.
+boutonLivraisons.addEventListener('click', async () => {
+  const data = await uploader(fileInputLivraison, `${API}/upload-livraisons`);
+  effacerTournee();
+  if (!data) {
+    // En cas d'erreur le backend n'a plus de livraisons chargées.
+    zoneLivraisons.textContent = 'Aucune livraison chargée.';
+    boutonTournees.disabled = true;
+    return;
+  }
+
+  displayLivraisons(data, zoneLivraisons);
+  boutonTournees.disabled = false;
+  statut.textContent = 'Livraisons chargées. Vous pouvez afficher la tournée.';
+});
+
+// 3. Tournée : calculée par l'API à partir de la carte et des livraisons uploadées.
+boutonTournees.addEventListener('click', async () => {
+  try {
+    const response = await fetch(`${API}/tournee`);
+    displayTournees(await response.json(), tourneeLayer, zoneTournees);
+  } catch (error) {
+    zoneTournees.textContent = "Erreur : impossible de contacter l'API (backend démarré ?)";
+  }
+});
