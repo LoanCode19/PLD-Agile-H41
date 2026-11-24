@@ -1,18 +1,34 @@
 import L from 'leaflet';
 import { formatTime } from './displayLivraisons.js';
 
-// Icône par défaut de Leaflet (l'épingle) : il faut importer les images
-// nous-mêmes, sinon elles sont introuvables une fois le code bundlé par Vite.
-import iconeEpingle from 'leaflet/dist/images/marker-icon.png';
-import iconeEpingle2x from 'leaflet/dist/images/marker-icon-2x.png';
-import ombreEpingle from 'leaflet/dist/images/marker-shadow.png';
+// Icônes de colis issues de Tabler Icons (https://tabler.io/icons, licence MIT) :
+// "package-export" pour l'enlèvement, "package-import" pour la livraison.
+// Les deux dessinent le même colis, seule la flèche change.
+// stroke="currentColor" : le trait prend la couleur CSS du parent (celle du coursier).
+const SVG_COLIS =
+  '<path d="M12 21l-8 -4.5v-9l8 -4.5l8 4.5v4.5" />' +
+  '<path d="M12 12l8 -4.5" /><path d="M12 12v9" /><path d="M12 12l-8 -4.5" />';
+const FLECHE_SORTANTE = '<path d="M15 18h7" /><path d="M19 15l3 3l-3 3" />';
+const FLECHE_ENTRANTE = '<path d="M22 18h-7" /><path d="M18 15l-3 3l3 3" />';
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: iconeEpingle,
-  iconRetinaUrl: iconeEpingle2x,
-  shadowUrl: ombreEpingle,
-});
+function svgColis(fleche) {
+  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    SVG_COLIS + fleche + '</svg>';
+}
+
+// Marqueur d'un enlèvement ou d'une livraison : l'icône de colis dans un rond
+// blanc bordé de la couleur du coursier (le fond blanc la rend lisible sur la carte).
+function iconeArret(type, couleur) {
+  const fleche = type === 'enlevement' ? FLECHE_SORTANTE : FLECHE_ENTRANTE;
+  return L.divIcon({
+    className: '', // sinon Leaflet ajoute un carré blanc par défaut
+    html: `<div style="width:28px;height:28px;background:#fff;color:${couleur};border:2px solid ${couleur};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 4px rgba(0,0,0,.4);">${svgColis(fleche)}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+  });
+}
 
 // Marqueur "E" pour l'entrepôt, bien distinct des épingles.
 const iconeEntrepot = L.divIcon({
@@ -90,9 +106,8 @@ export function displayTournees(data, coucheTournees, zone) {
         entrepotAffiche = true;
       }
 
-      const marqueur = estEntrepot
-        ? L.marker([point.latitude, point.longitude], { icon: iconeEntrepot })
-        : L.marker([point.latitude, point.longitude]); // épingle par défaut
+      const icone = estEntrepot ? iconeEntrepot : iconeArret(point.type, couleur);
+      const marqueur = L.marker([point.latitude, point.longitude], { icon: icone });
 
       marqueur.bindPopup(contenuPopup(point, coursier, estEntrepot));
       coucheTournees.addLayer(marqueur);
