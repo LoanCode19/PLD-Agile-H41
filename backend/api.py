@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from livraisons.parseur_livraisons import DemandeLivraisons
 from planification.planification import Planification
 from routeGraph.routeGraph import RouteGraph
-from tournee.tournee import Tournee
+from coursier.coursier import Coursier
 
 RESSOURCES = Path(__file__).resolve().parent.parent / "ressources"
 
@@ -29,6 +29,7 @@ def charger_carte(chemin: Path) -> RouteGraph:
 
 # Une seule planification, gardée en mémoire entre les appels.
 planification = Planification(charger_carte(RESSOURCES / "moyenPlan.xml"))
+planification.charger_demandes(RESSOURCES / "demandeMoyen5.xml") #a enlever pour le test de l'API
 
 
 @app.get("/api/route-graph")
@@ -41,7 +42,7 @@ async def get_list_livraison():
     return planification.charger_demandes(RESSOURCES / "demandeMoyen5.xml")
 
 
-@app.get("/api/getTestShortestPath", response_model=Tournee)
+@app.get("/api/getTestShortestPath", response_model=Coursier)
 async def get_shortest_path():
     try:
         planification.calculer_tournee()

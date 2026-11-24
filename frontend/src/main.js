@@ -1,5 +1,4 @@
 import { displayLivraisons } from './displayLivraisons.js';
-import demandeTournees from './demandeTournees.json';
 import { displayTournees } from './displayTournees.js';
 import livraisonsExemple from './livraisonsExemple.json';
 import L from 'leaflet';
@@ -29,15 +28,19 @@ bouton.addEventListener('click', () => {
         .then(data => displayJson(data, zone));
 });
 
-// La donnée vient de demandeTournees.json (import en haut du fichier).
-// Quand l'API sera prête, remplacer par :
-//   boutonTournees.addEventListener('click', () => {
-//       fetch('http://localhost:8080/api/demande-de-tournees')
-//           .then(response => response.json())
-//           .then(data => displayTournees(data, tourneeLayer, zoneTournees));
-//   });
+// La tournée vient de l'API : on lance la requête à chaque clic pour
+// récupérer un résultat à jour.
 const boutonTournees = document.getElementById('bouton-tournees');
 const zoneTournees = document.getElementById('zone-tournees');
+boutonTournees.addEventListener('click', () => {
+    fetch('http://localhost:8080/api/getTestShortestPath')
+        .then(response => response.json())
+        .then(data => displayTournees(data, tourneeLayer, zoneTournees))
+        .catch(() => {
+            zoneTournees.textContent =
+                'Erreur : impossible de contacter l\'API (backend démarré ?)';
+        });
+});
 // Initialisation de la carte de Lyon
 const map = L.map('map').setView([45.7640, 4.8357], 13);
 

@@ -1,4 +1,5 @@
 import L from 'leaflet';
+import { formatTime } from './displayLivraisons.js';
 
 // Les images de l'icône par défaut (l'épingle) doivent être importées
 // explicitement : Leaflet les cherche normalement par URL relative, ce qui
@@ -26,84 +27,108 @@ const iconeEntrepot = L.divIcon({
 // Une couleur par coursier, on repart au début si on dépasse la liste.
 const COULEURS = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#008080', '#9a6324', '#800000'];
 
-// Dessine les tournées sur la carte : une polyligne par coursier, un
-// marqueur sur les passages ENTREPOT / LIVRAISON / ENLEVEMENT.
-// data a cette forme :
+// Un marqueur n'est posé que sur ces types de point du chemin.
+const TYPES_MARQUEURS = ['entrepot', 'livraison', 'enlevement'];
+
+// L'API renvoie les heures en secondes (nombre) ; par sécurité on accepte
+// aussi une chaîne déjà formatée "HH:MM:SS".
+function formaterHeure(heure) {
+  if (typeof heure === 'number') return formatTime(heure);
+  return heure === undefined || heure === null ? '' : String(heure);
+}
+
+// Dessine la tournée du (ou des) coursier(s) sur la carte.
+// L'API renvoie un objet Coursier :
 // {
-//   "demandeDeTournees": {
-//     "coursiers": [
-//       { "id": "...", "nom": "...", "passages": [ { latitude, longitude, adresse, type, heure_arrivee, heure_depart }, ... ] }
-//     ]
+//   "id": ..., "nom": ..., "prenom": ...,
+//   "livraisons": [ { id, adresse_enlevement, adresse_livraison, ... } ],
+//   "tournee": {
+//     "chemin": [ { adresse, latitude, longitude, type, livraison, heure_arrivee, heure_depart } ],
+//     "depasse_heure_max": true/false
 //   }
 // }
+// Un tableau de coursiers est aussi accepté, pour quand l'API en renverra
+// plusieurs.
 export function displayTournees(data, coucheTournees, zone) {
   coucheTournees.clearLayers();
   zone.replaceChildren();
 
-  // 1) On descend dans le JSON jusqu'à la liste des coursiers, et on
-  //    vérifie qu'on a bien ce qu'on attend.
-  const coursiers = data?.demandeDeTournees?.coursiers;
-
-  if (!Array.isArray(coursiers)) {
-    const error = document.createElement('p');
-    error.textContent = data?.detail
-      ? `Erreur : ${data.detail}`
-      : 'Format de données invalide (demandeDeTournees.coursiers attendu)';
-    zone.appendChild(error);
+  // 1) Vérifications : erreur renvoyée par l'API ({detail: "..."}) ou
+  //    réponse inattendue.
+  if (!data || data.detail) {
+    zone.textContent = `Erreur : ${data?.detail ?? 'aucune réponse de l\u2019API'}`;
     return;
   }
 
-  if (coursiers.length === 0) {
+  const coursiers = Array.isArray(data) ? data : [data];
+  const coursiersAvecTournee = coursiers.filter(c => c?.tournee?.chemin?.length > 0);
+
+  if (coursiersAvecTournee.length === 0) {
     zone.textContent = 'Aucune tournée calculée.';
     return;
   }
 
-  // 2) Une couleur par coursier, et une légende pour les reconnaître.
-  // L'entrepot est commun à tous : on n'affiche son marqueur qu'une fois,
-  // au premier ENTREPOT lu.
+  // 2) L'entrepot est commun à tous : son marqueur ne sera posé qu'une
+  //    fois, au premier "entrepot" lu.
   let entrepotAffiche = false;
 
-  coursiers.forEach((coursier, index) => {
+  coursiersAvecTournee.forEach((coursier, index) => {
     const couleur = COULEURS[index % COULEURS.length];
+    const chemin = coursier.tournee.chemin;
 
+    // 3) Alerte en rouge si l'heure maximale est dépassée.
+    if (coursier.tournee.depasse_heure_max) {
+      const alerte = document.createElement('p');
+      alerte.style.color = 'red';
+      alerte.textContent =
+        `Attention : le coursier ${coursier.nom} dépasse l'heure maximale.`;
+      zone.appendChild(alerte);
+    }
+
+    // 4) Légende : un carré de la couleur du coursier, avec son nom.
     const legend = document.createElement('p');
     legend.innerHTML =
       `<span style="color:${couleur}">&#9632;</span> ` +
-      `Coursier ${coursier.nom} (${coursier.passages.length} passages)`;
+      `Coursier ${coursier.nom} ${coursier.prenom} (${chemin.length} points)`;
     zone.appendChild(legend);
 
-    // 3) Le tracé : array de coordonnées au format Leaflet [lat, lng],
-    //    dans l'ordre des passages, reliées par une polyligne.
-    const points = coursier.passages.map(passage => [passage.latitude, passage.longitude]);
+    // 5) Le tracé : array de coordonnées au format Leaflet [lat, lng],
+    //    dans l'ordre du chemin, reliées par une polyligne.
+    const points = chemin.map(point => [point.latitude, point.longitude]);
     coucheTournees.addLayer(L.polyline(points, { color: couleur, weight: 3 }));
 
-    // 4) Marqueurs sur les points d'intérêt uniquement : une épingle
+    // 6) Marqueurs sur les points d'intérêt uniquement : une épingle
     //    standard pour livraison / enlèvement, le marqueur "E" pour l'entrepot.
-    coursier.passages.forEach(passage => {
-      if (!['ENTREPOT', 'LIVRAISON', 'ENLEVEMENT'].includes(passage.type)) return;
+    chemin.forEach(point => {
+      const type = (point.type ?? '').toLowerCase();
+      if (!TYPES_MARQUEURS.includes(type)) return;
 
-      const isEntrepot = passage.type === 'ENTREPOT';
-      // L'entrepot est commun à tous : une seule fois, au premier lu.
+      const isEntrepot = type === 'entrepot';
       if (isEntrepot && entrepotAffiche) return;
       if (isEntrepot) entrepotAffiche = true;
 
       // Sans option icon, L.marker utilise l'épingle par défaut (l'icône
       // par défaut qu'on a recâblée plus haut).
-      const coords = [passage.latitude, passage.longitude];
+      const coords = [point.latitude, point.longitude];
       const marker = isEntrepot
         ? L.marker(coords, { icon: iconeEntrepot })
         : L.marker(coords);
 
-      // L'entrepot étant partagé par tous les coursiers, on n'indique
-      // pas de coursier dans son popup. On affiche les coordonnées partout.
+      // L'entrepot étant commun à tous les coursiers, on n'indique pas de
+      // coursier dans son popup. Si le point est lié à une livraison, on
+      // affiche son id pour pouvoir la retrouver dans la liste.
+      const livre = point.livraison?.id;
       marker.bindPopup(
-        `<b>${passage.type}</b><br>` +
+        `<b>${type.toUpperCase()}</b><br>` +
         (isEntrepot ? '' : `Coursier ${coursier.nom}<br>`) +
-        `Latitude : ${passage.latitude}<br>` +
-        `Longitude : ${passage.longitude}<br>` +
-        `Adresse : ${passage.adresse}<br>` +
-        `Arrivée : ${passage.heure_arrivee}` +
-        (passage.heure_depart !== passage.heure_arrivee ? ` — départ : ${passage.heure_depart}` : '')
+        (livre !== undefined ? `Livraison #${livre}<br>` : '') +
+        `Latitude : ${point.latitude}<br>` +
+        `Longitude : ${point.longitude}<br>` +
+        `Adresse : ${point.adresse}<br>` +
+        `Arrivée : ${formaterHeure(point.heure_arrivee)}` +
+        (point.heure_depart !== point.heure_arrivee
+          ? ` — départ : ${formaterHeure(point.heure_depart)}`
+          : '')
       );
       coucheTournees.addLayer(marker);
     });
