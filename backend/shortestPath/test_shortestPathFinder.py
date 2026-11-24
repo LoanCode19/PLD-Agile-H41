@@ -1,28 +1,29 @@
 """Tests de ShortestPathFinder.
 
 Depuis la racine du dépôt (-s pour voir les temps affichés) :
-    python -m pytest backend/shorstestPath -s
+    python -m pytest shortestPath -s
 """
 
 import functools
+import itertools
 import math
 import re
 import time
 from pathlib import Path
 
 import pytest
-
-from backend.livraisons.parseur_livraisons import (
+from livraisons.parseur_livraisons import (
     DemandeLivraisons,
     Livraison,
     charger_livraisons,
 )
-from backend.routeGraph.routeGraph import RouteGraph
-from backend.shorstestPath.shortestPathFinder import (
+from routeGraph.routeGraph import RouteGraph
+from shortestPath.shortestPathFinder import (
     HEURE_MAX_RETOUR,
     VITESSE_LIVREUR,
     ShortestPathFinder,
 )
+from tournee.tournee import Passage, TypeArret
 
 RESSOURCES = Path(__file__).resolve().parents[2] / "ressources"
 HEURE_DEPART = 8 * 3600
@@ -33,7 +34,7 @@ LIMITE_PERF_S = 3.0
 
 
 def hms(secondes: float) -> str:
-    s = int(round(secondes))
+    s = round(secondes)
     return f"{s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d}"
 
 
@@ -125,22 +126,23 @@ GRAPHE = graphe(
 )
 
 CAS = {
-    "une livraison": (Livraison(3, 6, 60, 120),),
+    # Livraison(id, enlèvement, livraison, durée enlèvement, durée livraison)
+    "une livraison": (Livraison(1, 3, 6, 60, 120),),
     "adresses partagées": (
-        Livraison(2, 5, 60, 120),  # livre en 5...
-        Livraison(5, 1, 30, 90),  # ...où on enlève, pour livrer à l'entrepôt
-        Livraison(1, 7, 45, 75),  # enlèvement à l'entrepôt
+        Livraison(1, 2, 5, 60, 120),  # livre en 5...
+        Livraison(2, 5, 1, 30, 90),  # ...où on enlève, pour livrer à l'entrepôt
+        Livraison(3, 1, 7, 45, 75),  # enlèvement à l'entrepôt
     ),
     "enlèvement et livraison au même endroit": (
-        Livraison(4, 4, 60, 120),
-        Livraison(6, 3, 30, 90),
+        Livraison(1, 4, 4, 60, 120),
+        Livraison(2, 6, 3, 30, 90),
     ),
     "cinq livraisons": (
-        Livraison(2, 7, 120, 300),
-        Livraison(8, 3, 60, 240),
-        Livraison(5, 2, 0, 600),
-        Livraison(6, 4, 180, 60),
-        Livraison(3, 8, 240, 120),
+        Livraison(1, 2, 7, 120, 300),
+        Livraison(2, 8, 3, 60, 240),
+        Livraison(3, 5, 2, 0, 600),
+        Livraison(4, 6, 4, 180, 60),
+        Livraison(5, 3, 8, 240, 120),
     ),
 }
 
@@ -184,10 +186,12 @@ def test_petits_fichiers_contre_force_brute(plan, nom_demande, tmp_path):
     finder = ShortestPathFinder(
         charger_plan(plan), charger_demande(nom_demande, tmp_path)
     )
-    route = finder.getBestRoute()
+    tournee = finder.calculer_tournee()
     attendu = heure_retour_force_brute(finder)
-    print(f"\n{nom_demande} : retour {hms(route[-1][1])} (attendu {hms(attendu)})")
-    assert route[-1][1] == pytest.approx(attendu)
+    print(
+        f"\n{nom_demande} : retour {hms(tournee.heure_retour)} (attendu {hms(attendu)})"
+    )
+    assert tournee.heure_retour == pytest.approx(attendu)
 
 
 @pytest.mark.parametrize("plan, nom_demande", GROS_FICHIERS)
@@ -196,31 +200,71 @@ def test_perf_gros_fichiers(plan, nom_demande, tmp_path):
     demande = charger_demande(nom_demande, tmp_path)
 
     debut = time.perf_counter()
-    route = ShortestPathFinder(g, demande).getBestRoute()
+    tournee = ShortestPathFinder(g, demande).calculer_tournee()
     duree = time.perf_counter() - debut
 
-    print(f"\n{nom_demande} : retour {hms(route[-1][1])} | calcul {duree:.2f} s")
-    assert route[-1][0] == demande.adresse_entrepot
+    print(
+        f"\n{nom_demande} : retour {hms(tournee.heure_retour)} | calcul {duree:.2f} s"
+    )
+    assert tournee.chemin[-1].adresse == demande.adresse_entrepot
     assert duree < LIMITE_PERF_S
-
-
-def test_sans_livraison():
-    route = ShortestPathFinder(
-        GRAPHE, DemandeLivraisons(1, HEURE_DEPART, ())
-    ).getBestRoute()
-    assert route == [(1, HEURE_DEPART), (1, HEURE_DEPART)]
 
 
 def test_arret_inaccessible():
     g = graphe([(1, 2, 100), (2, 1, 100)])
     g.add_node(3, 45.0, 4.0)  # aucun tronçon n'y mène
-    demande = DemandeLivraisons(1, HEURE_DEPART, (Livraison(2, 3, 0, 0),))
+    demande = DemandeLivraisons(1, HEURE_DEPART, (Livraison(1, 2, 3, 0, 0),))
     with pytest.raises(ValueError):
-        ShortestPathFinder(g, demande).getBestRoute()
+        ShortestPathFinder(g, demande).calculer_tournee()
 
 
-def test_retour_apres_heure_max():
+def suit_les_troncons(graph: RouteGraph, chemin: list[Passage]) -> bool:
+    """Chaque passage est relié au suivant par un tronçon (ou c'est le même
+    nœud, quand deux arrêts consécutifs sont à la même adresse)."""
+    for passage, suivant in itertools.pairwise(chemin):
+        if passage.adresse == suivant.adresse:
+            continue
+        destinations = {t.destination for t in graph.get_connections(passage.adresse)}
+        if suivant.adresse not in destinations:
+            return False
+    return True
+
+
+@pytest.mark.parametrize("livraisons", CAS.values(), ids=CAS.keys())
+def test_calculer_tournee(livraisons):
+    finder = ShortestPathFinder(GRAPHE, DemandeLivraisons(1, HEURE_DEPART, livraisons))
+    tournee = finder.calculer_tournee()
+
+    arrets = tournee.arrets
+    assert arrets[0].type == TypeArret.ENTREPOT
+    assert arrets[-1].type == TypeArret.ENTREPOT
+    assert len(arrets) == 2 * len(livraisons) + 2
+    for livraison in livraisons:  # enlevée avant d'être livrée
+        types = [arret.type for arret in arrets if arret.livraison == livraison]
+        assert types == [TypeArret.ENLEVEMENT, TypeArret.LIVRAISON]
+
+    passages = [p for p in tournee.chemin if not p.est_arret]
+    assert all(p.heure_arrivee is None and p.livraison is None for p in passages)
+    assert suit_les_troncons(GRAPHE, tournee.chemin)
+
+    assert tournee.heure_retour == pytest.approx(heure_retour_force_brute(finder))
+    assert not tournee.depasse_heure_max
+
+
+def test_calculer_tournee_sans_livraison():
+    tournee = ShortestPathFinder(
+        GRAPHE, DemandeLivraisons(1, HEURE_DEPART, ())
+    ).calculer_tournee()
+    assert [(p.adresse, p.type) for p in tournee.chemin] == [
+        (1, TypeArret.ENTREPOT),
+        (1, TypeArret.ENTREPOT),
+    ]
+    assert tournee.heure_retour == HEURE_DEPART
+
+
+def test_calculer_tournee_signale_le_depassement_sans_lever():
     trop_long = HEURE_MAX_RETOUR - HEURE_DEPART + 1  # rien que sur place
-    demande = DemandeLivraisons(1, HEURE_DEPART, (Livraison(3, 6, 0, trop_long),))
-    with pytest.raises(ValueError):
-        ShortestPathFinder(GRAPHE, demande).getBestRoute()
+    demande = DemandeLivraisons(1, HEURE_DEPART, (Livraison(1, 3, 6, 0, trop_long),))
+    tournee = ShortestPathFinder(GRAPHE, demande).calculer_tournee()
+    assert tournee.depasse_heure_max
+    assert tournee.heure_retour > HEURE_MAX_RETOUR

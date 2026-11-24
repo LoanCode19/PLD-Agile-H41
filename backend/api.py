@@ -1,12 +1,13 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-from backend.livraisons.parseur_livraisons import DemandeLivraisons, charger_livraisons
-from backend.routeGraph.routeGraph import RouteGraph
-from backend.shortestPath.shortestPathFinder import ShortestPathFinder
+from livraisons.parseur_livraisons import DemandeLivraisons
+from planification.planification import Planification
+from routeGraph.routeGraph import RouteGraph
+from tournee.tournee import Tournee
 
 RESSOURCES = Path(__file__).resolve().parent.parent / "ressources"
 
@@ -41,25 +42,33 @@ app.add_middleware(
 )
 
 
-@app.get("/api/route-graph", response_model=RouteGraph)
+def charger_carte(chemin: Path) -> RouteGraph:
+    carte = RouteGraph()
+    carte.construct_from_xml(chemin)
+    return carte
+
+
+# Une seule planification, gardée en mémoire entre les appels.
+planification = Planification(charger_carte(RESSOURCES / "grandPlan.xml"))
+
+
+@app.get("/api/route-graph")
 async def get_route_graph():
-    graph = RouteGraph()
-    graph.construct_from_xml(RESSOURCES / "grandPlan.xml")
-    return {graph}
+    return planification.carte
 
 
 @app.get("/api/getTestListLivraison", response_model=DemandeLivraisons)
 async def get_list_livraison():
-    return {"deliveries": charger_livraisons(RESSOURCES / "demandeGrand9.xml")}
+    return planification.charger_demandes(RESSOURCES / "demandeGrand9.xml")
 
 
-@app.get("/api/getTestShortestPath")
+@app.get("/api/getTestShortestPath", response_model=Tournee)
 async def get_shortest_path():
-    livraisons = charger_livraisons(RESSOURCES / "demandeGrand9.xml")
-    graph = RouteGraph()
-    graph.construct_from_xml(RESSOURCES / "grandPlan.xml")
-    shortest_path = ShortestPathFinder(graph, livraisons)
-    return {"shortest_path": shortest_path.getBestRoute()}
+    try:
+        planification.calculer_tournee()
+        return planification.coursier
+    except ValueError as e:  # aucune demande chargée, adresse inconnue...
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @app.post("/api/livreurs", response_model=ListeLivreurs, status_code=201)

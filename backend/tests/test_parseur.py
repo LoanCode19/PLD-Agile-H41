@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.livraisons.parseur_livraisons import FichierLivraisonsInvalide, charger_livraisons
+from livraisons.parseur_livraisons import FichierLivraisonsInvalide, charger_livraisons
 
 CHEMIN_EXEMPLE = Path(__file__).parent / "data" / "livraisons_exemple.xml"
 CHEMIN_GRAND9 = Path(__file__).parent / "data" / "demandeGrand9.xml"
@@ -33,6 +33,10 @@ class TestChargementValide:
         assert premiere.adresse_livraison == 239603465
         assert premiere.duree_enlevement == 0
         assert premiere.duree_livraison == 600
+
+    def test_numerote_les_livraisons_a_partir_de_1(self):
+        demande = charger_livraisons(CHEMIN_EXEMPLE)
+        assert [l.id for l in demande.livraisons] == [1, 2, 3]
 
     def test_sans_livraison_est_valide(self, tmp_path):
         chemin = ecrire_xml(
