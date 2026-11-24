@@ -42,7 +42,6 @@ async def get_route_graph():
 async def get_list_livraison():
     return planification.charger_demandes(RESSOURCES / "demandeMoyen5.xml")
 
-@app.get("api/")
 @app.get("/api/getTestShortestPath", response_model=Coursier)
 async def get_shortest_path():
     try:
@@ -55,7 +54,7 @@ async def get_shortest_path():
 @app.post("/api/upload-livraisons", response_model=DemandeLivraisons)
 async def upload_livraisons(file: UploadFile = File(...)):
     try:
-        destination = RESSOURCES / file.filename
+        destination = RESSOURCES / Path(file.filename).name  # .name : empeche "../" dans le nom
         with destination.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
@@ -68,7 +67,7 @@ async def upload_livraisons(file: UploadFile = File(...)):
 @app.post("/api/upload-carte")
 async def upload_carte(file: UploadFile = File(...)):
     try:
-        destination = RESSOURCES / file.filename
+        destination = RESSOURCES / Path(file.filename).name  # .name : empeche "../" dans le nom
         with destination.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         

@@ -40,7 +40,7 @@ boutonLivraisons.addEventListener('click', () => {
   formData.append('file', fileInputLivraison.files[0]);
   
   statut.textContent = "Upload des livraisons en cours...";
-  fetch('http://localhost:8000/api/upload-livraisons', {
+  fetch('http://localhost:8080/api/upload-livraisons', {
     method: 'POST',
     body: formData
   })
@@ -65,7 +65,7 @@ boutonCarte.addEventListener('click', () => {
   formData.append('file', fileInputCarte.files[0]);
   
   statut.textContent = "Upload de la carte en cours...";
-  fetch('http://localhost:8000/api/upload-carte', {
+  fetch('http://localhost:8080/api/upload-carte', {
     method: 'POST',
     body: formData
   })
@@ -81,15 +81,21 @@ boutonCarte.addEventListener('click', () => {
     });
 });
 
+// Initialisation de la carte de Lyon
 const map = L.map('map').setView([45.7640, 4.8357], 13);
 
+// Fond de carte OpenStreetMap
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
+// Couche dédiée aux tournées : on peut la vider/redessiner sans toucher
+// au fond de carte.
 const tourneeLayer = L.layerGroup().addTo(map);
 
+// La tournée vient de l'API : on lance la requête à chaque clic pour
+// récupérer un résultat à jour.
 const boutonTournees = document.getElementById('bouton-tournees');
 const zoneTournees = document.getElementById('zone-tournees');
 boutonTournees.addEventListener('click', () => {

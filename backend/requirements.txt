@@ -5,6 +5,8 @@
 # API serveur
 fastapi>=0.110
 uvicorn>=0.29
+# Requis par FastAPI pour recevoir des fichiers (UploadFile / File)
+python-multipart>=0.0.9
 
 # Outils de test
 pytest>=8.0
