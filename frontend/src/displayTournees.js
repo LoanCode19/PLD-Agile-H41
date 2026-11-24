@@ -110,6 +110,7 @@ export function displayTournees(data, coucheTournees, zone) {
     // Le tracé : une polyligne qui relie tous les points du chemin, dans l'ordre.
     const points = chemin.map(p => [p.latitude, p.longitude]);
     coucheTournees.addLayer(L.polyline(points, { color: couleur, weight: 3 }));
+    ajouterFleches(chemin, couleur, coucheTournees);
 
     // Un marqueur sur chaque arrêt (pas sur les simples passages).
     for (const point of chemin) {
@@ -129,6 +130,32 @@ export function displayTournees(data, coucheTournees, zone) {
       coucheTournees.addLayer(marqueur);
     }
   });
+}
+
+// Pose une petite flèche au milieu d'un tronçon sur deux, tournée dans le sens
+// de la marche : aux croisements, on voit quelles branches entrent et sortent.
+function ajouterFleches(chemin, couleur, coucheTournees) {
+  for (let i = 0; i < chemin.length - 1; i += 3) {
+    const a = chemin[i];
+    const b = chemin[i + 1];
+
+    // Angle du tronçon (en degrés) : longitude = axe horizontal, latitude = axe vertical.
+    const angle = Math.atan2(b.latitude - a.latitude, b.longitude - a.longitude) * 180 / Math.PI;
+
+    // Triangle pointant vers la droite (l'est), puis tourné de -angle :
+    // en CSS, rotate() tourne dans le sens horaire, alors que l'angle est anti-horaire.
+    const fleche = L.divIcon({
+      className: '',
+      html: `<div style="transform:rotate(${-angle}deg)"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 5L0 10z" fill="${couleur}" stroke="#fff" stroke-width="1"/></svg></div>`,
+      iconSize: [10, 10],
+      iconAnchor: [5, 5],
+    });
+
+    const milieu = [(a.latitude + b.latitude) / 2, (a.longitude + b.longitude) / 2];
+    // interactive: false : la flèche ne bloque pas les clics ;
+    // zIndexOffset négatif : elle passe sous les icônes des arrêts.
+    coucheTournees.addLayer(L.marker(milieu, { icon: fleche, interactive: false, zIndexOffset: -1000 }));
+  }
 }
 
 // Au clic sur un enlèvement (ou une livraison), trace un trait en pointillés
