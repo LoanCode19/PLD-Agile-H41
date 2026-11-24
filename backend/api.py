@@ -2,11 +2,10 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
-from backend.livraisons.parseur_livraisons import DemandeLivraisons
-from backend.planification.planification import Planification
-from backend.routeGraph.routeGraph import RouteGraph
-from backend.tournee.tournee import Tournee
+from livraisons.parseur_livraisons import DemandeLivraisons
+from planification.planification import Planification
+from routeGraph.routeGraph import RouteGraph
+from tournee.tournee import Tournee
 
 RESSOURCES = Path(__file__).resolve().parent.parent / "ressources"
 

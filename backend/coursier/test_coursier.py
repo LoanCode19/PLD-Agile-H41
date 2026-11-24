@@ -1,7 +1,7 @@
 """Tests de Coursier."""
 
-from backend.coursier.coursier import Coursier
-from backend.livraisons.parseur_livraisons import Livraison
+from coursier.coursier import Coursier
+from livraisons.parseur_livraisons import Livraison
 
 
 def test_nouveau_coursier_sans_livraison_ni_tournee():

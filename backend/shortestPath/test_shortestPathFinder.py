@@ -1,7 +1,7 @@
 """Tests de ShortestPathFinder.
 
 Depuis la racine du dépôt (-s pour voir les temps affichés) :
-    python -m pytest backend/shorstestPath -s
+    python -m pytest shortestPath -s
 """
 
 import functools
@@ -13,18 +13,18 @@ from pathlib import Path
 
 import pytest
 
-from backend.livraisons.parseur_livraisons import (
+from livraisons.parseur_livraisons import (
     DemandeLivraisons,
     Livraison,
     charger_livraisons,
 )
-from backend.routeGraph.routeGraph import RouteGraph
-from backend.shortestPath.shortestPathFinder import (
+from routeGraph.routeGraph import RouteGraph
+from shortestPath.shortestPathFinder import (
     HEURE_MAX_RETOUR,
     VITESSE_LIVREUR,
     ShortestPathFinder,
 )
-from backend.tournee.tournee import Passage, TypeArret
+from tournee.tournee import Passage, TypeArret
 
 RESSOURCES = Path(__file__).resolve().parents[2] / "ressources"
 HEURE_DEPART = 8 * 3600

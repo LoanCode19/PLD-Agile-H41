@@ -1,9 +1,9 @@
 import heapq
 import math
 
-from backend.livraisons.parseur_livraisons import DemandeLivraisons, Livraison
-from backend.routeGraph.routeGraph import Edge, RouteGraph
-from backend.tournee.tournee import Passage, Tournee, TypeArret
+from livraisons.parseur_livraisons import DemandeLivraisons, Livraison
+from routeGraph.routeGraph import Edge, RouteGraph
+from tournee.tournee import Passage, Tournee, TypeArret
 
 VITESSE_LIVREUR = 15 / 3.6  # 15 km/h, en m/s (pour les horaires)
 HEURE_MAX_RETOUR = 13 * 3600  # 13h00, en secondes après minuit

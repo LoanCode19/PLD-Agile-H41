@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from backend.planification.planification import Planification
-from backend.routeGraph.routeGraph import RouteGraph
+from planification.planification import Planification
+from routeGraph.routeGraph import RouteGraph
 
 
 def carte() -> RouteGraph:

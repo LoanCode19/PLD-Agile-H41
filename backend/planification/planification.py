@@ -6,11 +6,11 @@ demande chargée lui reviennent.
 
 from pathlib import Path
 
-from backend.coursier.coursier import Coursier
-from backend.livraisons.parseur_livraisons import DemandeLivraisons, charger_livraisons
-from backend.routeGraph.routeGraph import RouteGraph
-from backend.shortestPath.shortestPathFinder import ShortestPathFinder
-from backend.tournee.tournee import Tournee
+from coursier.coursier import Coursier
+from livraisons.parseur_livraisons import DemandeLivraisons, charger_livraisons
+from routeGraph.routeGraph import RouteGraph
+from shortestPath.shortestPathFinder import ShortestPathFinder
+from tournee.tournee import Tournee
 
 
 class Planification:
