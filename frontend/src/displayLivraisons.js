@@ -39,11 +39,13 @@ export function displayLivraisons(data, zone) {
 
   const list = document.createElement('ul');
 
-  data.livraisons.forEach((livraison, index) => {
+  data.livraisons.forEach(livraison => {
     const item = document.createElement('li');
 
+    // On affiche l'id donné par l'API (et non la position dans la liste) :
+    // c'est le même numéro que celui affiché sur la carte.
     item.textContent =
-      `Livraison ${index + 1} — ` +
+      `Livraison ${livraison.id} — ` +
       `Enlèvement : ${livraison.adresse_enlevement} ` +
       `(${formatDuration(livraison.duree_enlevement)}) — ` +
       `Livraison : ${livraison.adresse_livraison} ` +
