@@ -1,8 +1,9 @@
 import heapq
 import math
 
-from backend.livraisons.parseur_livraisons import DemandeLivraisons
+from backend.livraisons.parseur_livraisons import DemandeLivraisons, Livraison
 from backend.routeGraph.routeGraph import Edge, RouteGraph
+from backend.tournee.tournee import Passage, Tournee, TypeArret
 
 VITESSE_LIVREUR = 15 / 3.6  # 15 km/h, en m/s (pour les horaires)
 HEURE_MAX_RETOUR = 13 * 3600  # 13h00, en secondes après minuit
@@ -43,25 +44,24 @@ class ShortestPathFinder:
         for adresse in adresses:
             self._dijkstra(adresse, adresses)
 
-    def getBestRoute(self) -> list[tuple[int, float | None]]:
+    def calculer_tournee(self) -> Tournee:
         """Nœuds du graphe à parcourir, de l'entrepôt à l'entrepôt.
 
-        Chaque nœud est accompagné de l'heure d'arrivée (s après minuit) si
-        on s'y arrête pour un enlèvement ou une livraison, sinon de None.
+        Chaque nœud est un Passage : les arrêts (entrepôt, enlèvement,
+        livraison) portent leurs horaires et leur livraison, les simples
+        passages non. Une tournée qui rentre après HEURE_MAX_RETOUR est quand
+        même renvoyée, avec depasse_heure_max = True.
         """
         ordre, horaires = self.held_karp()
-        route = [(self.adresse_entrepot, horaires[0][0])]
-        if horaires[-1][0] > HEURE_MAX_RETOUR:
-            raise ValueError(
-                f"Tournée impossible : retour à l'entrepôt après {horaires[-1][0]} s"
-            )
+        chemin = [self._passage_arret(ordre[0], horaires[0])]
+        depasse_heure_max = horaires[-1][0] > HEURE_MAX_RETOUR
         for k in range(1, len(ordre)):
             depart = self.arrets[ordre[k - 1]]
             arrivee = self.arrets[ordre[k]]
             for noeud in self._noeuds_entre(depart, arrivee):
-                route.append((noeud, None))  # simple passage
-            route.append((arrivee, horaires[k][0]))
-        return route
+                chemin.append(self._passage(noeud, TypeArret.PASSAGE))  # simple passage
+            chemin.append(self._passage_arret(ordre[k], horaires[k]))
+        return Tournee(chemin, depasse_heure_max)
 
     def _dijkstra(self, source: int, cibles: set[int]) -> None:
         """Remplit distances[source] et predecesseurs[source].
@@ -246,3 +246,34 @@ class ShortestPathFinder:
         if est_enlevement:
             return livraison.duree_enlevement
         return livraison.duree_livraison
+
+    def _passage_arret(self, arret: int, horaire: tuple[float, float]) -> Passage:
+        """Passage à l'arrêt d'indice arret, avec ses horaires (arrivée, départ)."""
+        if arret == 0:
+            return self._passage(
+                self.adresse_entrepot, TypeArret.ENTREPOT, None, horaire
+            )
+        livraison = self.demande_livraisons.livraisons[(arret - 1) // 2]
+        est_enlevement = arret % 2 == 1
+        type = TypeArret.ENLEVEMENT if est_enlevement else TypeArret.LIVRAISON
+        return self._passage(self.arrets[arret], type, livraison, horaire)
+
+    def _passage(
+        self,
+        adresse: int,
+        type: TypeArret,
+        livraison: Livraison | None = None,
+        horaire: tuple[float, float] | tuple[None, None] = (None, None),
+    ) -> Passage:
+        """Passage par le nœud adresse (coordonnées lues dans le graphe)."""
+        noeud = self.graph.nodes[adresse]
+        heure_arrivee, heure_depart = horaire
+        return Passage(
+            adresse=adresse,
+            latitude=noeud.latitude,
+            longitude=noeud.longitude,
+            type=type,
+            livraison=livraison,
+            heure_arrivee=heure_arrivee,
+            heure_depart=heure_depart,
+        )
