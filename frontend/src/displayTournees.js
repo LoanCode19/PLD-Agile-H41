@@ -125,9 +125,29 @@ export function displayTournees(data, coucheTournees, zone) {
       const marqueur = L.marker([point.latitude, point.longitude], { icon: icone });
 
       marqueur.bindPopup(contenuPopup(point, coursier, estEntrepot));
+      if (!estEntrepot) relierPartenaireAuClic(marqueur, point, chemin, coucheTournees);
       coucheTournees.addLayer(marqueur);
     }
   });
+}
+
+// Au clic sur un enlèvement (ou une livraison), trace un trait en pointillés
+// jusqu'à l'autre point de la même paire. Le trait disparaît quand le popup se ferme.
+// Leaflet n'ouvre qu'un popup à la fois, donc un seul trait est visible à la fois.
+function relierPartenaireAuClic(marqueur, point, chemin, coucheTournees) {
+  // Le partenaire : même livraison, mais l'autre type (enlèvement <-> livraison).
+  // (les simples passages n'ont pas de livraison, ils ne sont donc jamais trouvés)
+  const partenaire = chemin.find(p =>
+    p.livraison?.id === point.livraison.id && p.type !== point.type);
+  if (!partenaire) return;
+
+  const trait = L.polyline(
+    [[point.latitude, point.longitude], [partenaire.latitude, partenaire.longitude]],
+    { color: "black", weight: 3, dashArray: '8 8' },
+  );
+
+  marqueur.on('popupopen', () => coucheTournees.addLayer(trait));
+  marqueur.on('popupclose', () => coucheTournees.removeLayer(trait));
 }
 
 // Texte du popup d'un arrêt. Pas de coursier pour l'entrepôt (commun à tous).
