@@ -107,9 +107,8 @@ export function displayTournees(data, coucheTournees, zone) {
       `Coursier ${coursier.nom} ${coursier.prenom} (${chemin.length} points)`;
     zone.appendChild(legende);
 
-    // Le tracé : une polyligne qui relie tous les points du chemin, dans l'ordre.
-    const points = chemin.map(p => [p.latitude, p.longitude]);
-    coucheTournees.addLayer(L.polyline(points, { color: couleur, weight: 3 }));
+    // Le tracé, découpé en étapes (d'un arrêt au suivant), puis les flèches de direction.
+    const etapeVers = dessinerEtapes(chemin, couleur, coucheTournees);
     ajouterFleches(chemin, couleur, coucheTournees);
 
     // Un marqueur sur chaque arrêt (pas sur les simples passages).
@@ -126,13 +125,50 @@ export function displayTournees(data, coucheTournees, zone) {
       const marqueur = L.marker([point.latitude, point.longitude], { icon: icone });
 
       marqueur.bindPopup(contenuPopup(point, coursier, estEntrepot));
-      if (!estEntrepot) relierPartenaireAuClic(marqueur, point, chemin, coucheTournees);
+      if (!estEntrepot) {
+        relierPartenaireAuClic(marqueur, point, chemin, coucheTournees);
+        surlignerEtapeAuClic(marqueur, etapeVers.get(point));
+      }
       coucheTournees.addLayer(marqueur);
     }
   });
 }
 
-// Pose une petite flèche au milieu d'un tronçon sur deux, tournée dans le sens
+// Dessine le chemin en plusieurs polylignes : une par étape, d'un arrêt
+// (entrepôt, enlèvement, livraison) jusqu'à l'arrêt suivant.
+// Renvoie une Map : arrêt -> polyligne de l'étape qui arrive à cet arrêt.
+function dessinerEtapes(chemin, couleur, coucheTournees) {
+  const etapeVers = new Map();
+  let morceau = [[chemin[0].latitude, chemin[0].longitude]];
+
+  for (let i = 1; i < chemin.length; i++) {
+    const point = chemin[i];
+    morceau.push([point.latitude, point.longitude]);
+
+    // Arrivée à un arrêt : l'étape est finie, la suivante repart d'ici.
+    if (point.type !== 'passage') {
+      const etape = L.polyline(morceau, { color: couleur, weight: 3 });
+      coucheTournees.addLayer(etape);
+      etapeVers.set(point, etape);
+      morceau = [[point.latitude, point.longitude]];
+    }
+  }
+  return etapeVers;
+}
+
+// Au clic sur un arrêt, épaissit l'étape qui y mène. Une étape va d'un arrêt
+// au suivant sans retour en arrière : même si le tracé complet se croise,
+// on voit sans ambiguïté par où passer.
+function surlignerEtapeAuClic(marqueur, etape) {
+  if (!etape) return;
+  marqueur.on('popupopen', () => {
+    etape.setStyle({ weight: 7 });
+    etape.bringToFront(); // passe au-dessus des autres traits
+  });
+  marqueur.on('popupclose', () => etape.setStyle({ weight: 3 }));
+}
+
+// Pose une petite flèche au milieu d'un tronçon sur trois, tournée dans le sens
 // de la marche : aux croisements, on voit quelles branches entrent et sortent.
 function ajouterFleches(chemin, couleur, coucheTournees) {
   for (let i = 0; i < chemin.length - 1; i += 3) {
@@ -142,13 +178,14 @@ function ajouterFleches(chemin, couleur, coucheTournees) {
     // Angle du tronçon (en degrés) : longitude = axe horizontal, latitude = axe vertical.
     const angle = Math.atan2(b.latitude - a.latitude, b.longitude - a.longitude) * 180 / Math.PI;
 
-    // Triangle pointant vers la droite (l'est), puis tourné de -angle :
-    // en CSS, rotate() tourne dans le sens horaire, alors que l'angle est anti-horaire.
+    // Triangle isocèle allongé (14 de long, 8 de large) pointant vers la droite
+    // (l'est), puis tourné de -angle : en CSS, rotate() tourne dans le sens
+    // horaire, alors que l'angle est anti-horaire.
     const fleche = L.divIcon({
       className: '',
-      html: `<div style="transform:rotate(${-angle}deg)"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0L10 5L0 10z" fill="${couleur}" stroke="#fff" stroke-width="1"/></svg></div>`,
-      iconSize: [10, 10],
-      iconAnchor: [5, 5],
+      html: `<div style="transform:rotate(${-angle}deg)"><svg style="display:block" width="14" height="8" viewBox="0 0 14 8"><path d="M0 0L14 4L0 8z" fill="${couleur}" stroke="#fff" stroke-width="1"/></svg></div>`,
+      iconSize: [14, 8],
+      iconAnchor: [7, 4],
     });
 
     const milieu = [(a.latitude + b.latitude) / 2, (a.longitude + b.longitude) / 2];
