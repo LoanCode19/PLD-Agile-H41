@@ -3,10 +3,10 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.livraisons.parseur_livraisons import DemandeLivraisons
-from backend.planification.planification import Planification
-from backend.routeGraph.routeGraph import RouteGraph
-from backend.tournee.tournee import Tournee
+from livraisons.parseur_livraisons import DemandeLivraisons
+from planification.planification import Planification
+from routeGraph.routeGraph import RouteGraph
+from tournee.tournee import Tournee
 
 RESSOURCES = Path(__file__).resolve().parent.parent / "ressources"
 
@@ -29,7 +29,7 @@ def charger_carte(chemin: Path) -> RouteGraph:
 
 
 # Une seule planification, gardée en mémoire entre les appels.
-planification = Planification(charger_carte(RESSOURCES / "grandPlan.xml"))
+planification = Planification(charger_carte(RESSOURCES / "moyenPlan.xml"))
 
 
 @app.get("/api/route-graph")
@@ -39,7 +39,7 @@ async def get_route_graph():
 
 @app.get("/api/getTestListLivraison", response_model=DemandeLivraisons)
 async def get_list_livraison():
-    return planification.charger_demandes(RESSOURCES / "demandeGrand9.xml")
+    return planification.charger_demandes(RESSOURCES / "demandeMoyen5.xml")
 
 
 @app.get("/api/getTestShortestPath", response_model=Tournee)

@@ -7,7 +7,7 @@ Tournee sans importer Planification (pas d'import circulaire).
 from dataclasses import dataclass
 from enum import StrEnum
 
-from backend.livraisons.parseur_livraisons import Livraison
+from livraisons.parseur_livraisons import Livraison
 
 
 class TypeArret(StrEnum):

@@ -2,8 +2,8 @@
 
 from dataclasses import dataclass, field
 
-from backend.livraisons.parseur_livraisons import Livraison
-from backend.tournee.tournee import Tournee
+from livraisons.parseur_livraisons import Livraison
+from tournee.tournee import Tournee
 
 
 @dataclass
