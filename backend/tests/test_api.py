@@ -158,6 +158,19 @@ class TestTournee:
         coursiers = client_avec_livraisons.get("/api/tournee").json()
         assert [c["tournee"] for c in coursiers] == [None]
 
+    def test_points_non_assignes(self, client_avec_livraisons):
+        client = ajouter_coursier(client_avec_livraisons)
+        points = client.get("/api/points-non-assignes").json()
+        assert [(p["type"], p["livraison"]["id"]) for p in points] == [
+            ("enlevement", 1), ("livraison", 1)]
+        assert all(p["latitude"] and p["longitude"] for p in points)
+
+        client.post("/api/coursiers/1/assignLivraisons", json=[1])
+        assert client.get("/api/points-non-assignes").json() == []
+
+    def test_points_non_assignes_sans_livraisons(self, client_avec_carte):
+        erreur(client_avec_carte.get("/api/points-non-assignes"), 409, "LIVRAISONS_NON_CHARGEES")
+
 
 class TestAssignation:
     def test_coursier_inconnu(self, client_avec_livraisons):

@@ -54,6 +54,9 @@ const iconeEntrepot = L.divIcon({
   popupAnchor: [0, -16],
 });
 
+// Gris des points qu'aucun coursier ne prend en charge.
+const GRIS = '#9e9e9e';
+
 // Une couleur par coursier (on reboucle si on dépasse la liste).
 const COULEURS = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#008080', '#9a6324', '#800000'];
 
@@ -127,6 +130,31 @@ export function displayTournees(data, coucheTournees, zone) {
       coucheTournees.addLayer(marqueur);
     }
   });
+}
+
+// Ajoute en gris les enlèvements et livraisons assignés à personne
+// (réponse de GET /api/points-non-assignes : mêmes champs qu'un point de chemin,
+// sans horaires). À appeler après displayTournees, qui vide la couche.
+export function displayPointsNonAssignes(points, coucheTournees, zone) {
+  if (points.length === 0) return;
+
+  const legende = document.createElement('p');
+  legende.innerHTML =
+    `<span style="color:${GRIS}">&#9632;</span> ` +
+    `Non assignées (${points.length / 2} livraison(s))`;
+  zone.appendChild(legende);
+
+  for (const point of points) {
+    const marqueur = L.marker([point.latitude, point.longitude], {
+      icon: iconeArret(point.type, GRIS, point.livraison.id),
+    });
+    marqueur.bindPopup(
+      `<b>${point.type.toUpperCase()}</b><br>Non assignée<br>` +
+      `Livraison ${point.livraison.id}<br>Adresse : ${point.adresse}`);
+    // Même pointillé que pour les tournées : `points` contient la paire.
+    relierPartenaireAuClic(marqueur, point, points, coucheTournees);
+    coucheTournees.addLayer(marqueur);
+  }
 }
 
 // Dessine le chemin en plusieurs polylignes : une par étape, d'un arrêt

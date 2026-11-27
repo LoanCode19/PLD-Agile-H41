@@ -15,6 +15,7 @@ from erreurs import CarteNonChargee, ErreurMetier, LivraisonsInconnues, Livraiso
 from livraisons.parseur_livraisons import DemandeLivraisons
 from planification.planification import Planification
 from routeGraph.routeGraph import RouteGraph
+from tournee.tournee import Passage
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +151,12 @@ async def get_tournee():
     p = planification_avec_carte()
     demande_chargee(p)
     return list(p.coursiers.values())
+
+
+@app.get("/api/points-non-assignes", response_model=list[Passage])
+async def get_points_non_assignes():
+    """Enlèvements et livraisons qu'aucun coursier n'a (à afficher en gris)."""
+    return planification_avec_carte().points_non_assignes()
 
 
 @app.post("/api/add-coursiers", response_model=list[Coursier])

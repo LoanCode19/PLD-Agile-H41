@@ -1,5 +1,5 @@
 import { displayLivraisons, lireAssignations } from './displayLivraisons.js';
-import { displayTournees } from './displayTournees.js';
+import { displayTournees, displayPointsNonAssignes } from './displayTournees.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { setupLivreurs } from './displayLivreurs.js';
@@ -175,6 +175,7 @@ boutonTournees.addEventListener('click', async () => {
       });
     }
     displayTournees(await appelerApi(`${API}/tournee`), tourneeLayer, zoneTournees);
+    displayPointsNonAssignes(await appelerApi(`${API}/points-non-assignes`), tourneeLayer, zoneTournees);
     statut.textContent = 'Tournées calculées.';
     statut.style.color = '#333';
     boutonTournees.disabled = false;
