@@ -16,12 +16,11 @@ function afficherErreur(e, zoneAffichage) {
 
 document.querySelector('#app').innerHTML = `
   <div style="margin-bottom: 20px;">
-    1. <input type="file" id="fileInputCarte" accept=".xml" />
-    <button id="bouton-carte">Uploader la carte</button>
-    <br><br>
-    2. <input type="file" id="fileInputLivraison" accept=".xml" />
-    <button id="bouton-livraisons" disabled>Uploader les livraisons</button>
     <p id="statut" style="font-weight: bold; color: #333;">Commencez par uploader une carte.</p>
+    1. Uploader la carte : <input type="file" id="fileInputCarte" accept=".xml" />
+    <br><br>
+    2. Uploader les livraisons : <input type="file" id="fileInputLivraison" accept=".xml" />
+    <div id="erreur-livraisons" style="color: red; font-size: 15px; margin-top: 4px;"></div>
   </div>
 
   <button id="bouton-tournees" disabled>Afficher les tournées</button>
@@ -39,13 +38,13 @@ document.querySelector('#app').innerHTML = `
 `;
 
 const fileInputCarte = document.getElementById('fileInputCarte');
-const boutonCarte = document.getElementById('bouton-carte');
 const fileInputLivraison = document.getElementById('fileInputLivraison');
-const boutonLivraisons = document.getElementById('bouton-livraisons');
 const boutonTournees = document.getElementById('bouton-tournees');
 const statut = document.getElementById('statut');
 const zoneTournees = document.getElementById('zone-tournees');
 const zoneLivraisons = document.getElementById('livraisons');
+const erreurLivraisons = document.getElementById('erreur-livraisons');
+let carteChargee = false;
 
 // Initialisation de la carte de Lyon
 const map = L.map('map').setView([45.7640, 4.8357], 13);
@@ -68,10 +67,8 @@ function effacerTournee() {
 
 // Envoie le fichier choisi dans `input` à l'API (champ "file").
 // Renvoie le JSON de la réponse, ou lance une ErreurApi en cas d'erreur.
+// (les gestionnaires 'change' ne l'appellent que si un fichier est choisi)
 async function uploader(input, url) {
-  if (input.files.length === 0) {
-    throw new ErreurApi('FICHIER_MANQUANT', "Veuillez d'abord sélectionner un fichier.");
-  }
   const formData = new FormData();
   formData.append('file', input.files[0]);
   statut.textContent = 'Upload en cours...';
@@ -79,23 +76,43 @@ async function uploader(input, url) {
 }
 
 // 1. Carte : une nouvelle carte oublie les livraisons précédentes.
-boutonCarte.addEventListener('click', async () => {
+// 1. Carte : l'upload part dès qu'un fichier est choisi.
+// Une nouvelle carte oublie les livraisons précédentes.
+fileInputCarte.addEventListener('change', async () => {
+  if (fileInputCarte.files.length === 0) return; // l'utilisateur a annulé la sélection du fichier
+
   try {
     const data = await uploader(fileInputCarte, `${API}/upload-carte`);
+    carteChargee = true;
+    erreurLivraisons.textContent = '';
     effacerTournee();
     zoneLivraisons.textContent = 'Aucune livraison chargée.';
-    boutonLivraisons.disabled = false;
+    fileInputLivraison.value = ''; // réinitialise le champ pour forcer l'utilisateur à re-sélectionner un fichier
     boutonTournees.disabled = true;
     statut.textContent =
       `Carte chargée (${data.intersections} intersections). Uploadez maintenant les livraisons.`;
     statut.style.color = '#333';
   } catch (e) {
+    // Carte refusée : le backend garde l'ancienne carte (s'il y en avait une),
+    // donc carteChargee ne change pas.
     afficherErreur(e, statut);
+    fileInputCarte.value = ''; // pour que re-choisir le même fichier (corrigé) relance l'upload
   }
 });
 
-// 2. Livraisons : affichées en bas de la page.
-boutonLivraisons.addEventListener('click', async () => {
+// 2. Livraisons : l'upload part dès qu'un fichier est choisi ; affichées en bas de la page.
+fileInputLivraison.addEventListener('change', async () => {
+  if (fileInputLivraison.files.length === 0) return; // l'utilisateur a annulé la sélection du fichier
+
+  // Vérification côté front pour éviter un appel inutile (le backend
+  // répondrait de toute façon CARTE_NON_CHARGEE).
+  if (!carteChargee) {
+    erreurLivraisons.textContent = "Veuillez d'abord uploader la carte.";
+    fileInputLivraison.value = ''; // vide le champ pour que l'utilisateur puisse réessayer
+    return;
+  }
+  erreurLivraisons.textContent = '';
+
   try {
     const data = await uploader(fileInputLivraison, `${API}/upload-livraisons`);
     effacerTournee();
@@ -105,9 +122,11 @@ boutonLivraisons.addEventListener('click', async () => {
     statut.style.color = '#333';
   } catch (e) {
     afficherErreur(e, statut);
+    effacerTournee();
     // En cas d'erreur le backend n'a plus de livraisons chargées.
     zoneLivraisons.textContent = 'Aucune livraison chargée.';
     boutonTournees.disabled = true;
+    fileInputLivraison.value = ''; // pour que re-choisir le même fichier (corrigé) relance l'upload
   }
 });
 
