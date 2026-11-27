@@ -4,8 +4,15 @@ from pathlib import Path
 
 import pytest
 
+from coursier.coursier import Coursier
 from planification.planification import Planification
 from routeGraph.routeGraph import RouteGraph
+
+
+def avec_un_coursier(planification: Planification) -> Coursier:
+    """Crée le coursier 1 (une planification démarre sans coursier)."""
+    planification.coursiers[1] = Coursier(1)
+    return planification.coursiers[1]
 
 
 def carte() -> RouteGraph:
@@ -34,7 +41,7 @@ def fichier_demandes(tmp_path: Path) -> Path:
 def test_charger_demandes_efface_livraisons_et_tournee_des_coursiers(tmp_path):
     planification = Planification(carte())
     demande = planification.charger_demandes(fichier_demandes(tmp_path))
-    coursier = planification.coursiers[1]
+    coursier = avec_un_coursier(planification)
     coursier.livraisons = list(demande.livraisons)
     planification.calculer_tournee(1)
 
@@ -47,7 +54,7 @@ def test_charger_demandes_efface_livraisons_et_tournee_des_coursiers(tmp_path):
 def test_calculer_tournee_sur_les_livraisons_du_coursier(tmp_path):
     planification = Planification(carte())
     demande = planification.charger_demandes(fichier_demandes(tmp_path))
-    planification.coursiers[1].livraisons = list(demande.livraisons)
+    avec_un_coursier(planification).livraisons = list(demande.livraisons)
     tournee = planification.calculer_tournee(1)
     assert planification.coursiers[1].tournee is tournee
     assert [arret.adresse for arret in tournee.arrets] == [1, 2, 3, 1]
@@ -56,10 +63,17 @@ def test_calculer_tournee_sur_les_livraisons_du_coursier(tmp_path):
 def test_calculer_tournee_sans_livraison_assignee(tmp_path):
     planification = Planification(carte())
     planification.charger_demandes(fichier_demandes(tmp_path))
+    avec_un_coursier(planification)
     with pytest.raises(ValueError, match="Aucune livraison assignée"):
         planification.calculer_tournee(1)
 
 
 def test_calculer_tournee_sans_demande():
     with pytest.raises(ValueError, match="Aucune demande"):
-        Planification(carte()).calculer_tournee(1)
+        planification = Planification(carte())
+        avec_un_coursier(planification)
+        planification.calculer_tournee(1)
+
+
+def test_nouvelle_planification_sans_coursier():
+    assert Planification(carte()).coursiers == {}

@@ -1,7 +1,6 @@
-"""Point d'entrée de l'API vers le modèle : une carte, un coursier.
+"""Point d'entrée de l'API vers le modèle : une carte, des coursiers.
 
-Pour l'instant il n'y a qu'un seul coursier : toutes les livraisons de la
-demande chargée lui reviennent.
+Chaque coursier a les livraisons qu'on lui assigne et sa propre tournée.
 """
 
 from pathlib import Path
@@ -14,17 +13,18 @@ from tournee.tournee import Tournee
 
 
 class Planification:
-    """La carte, l'unique coursier et la demande de livraisons chargée.
+    """La carte, les coursiers et la demande de livraisons chargée.
 
     Attributes:
         carte: le plan de la ville.
-        coursier: l'unique coursier, à qui reviennent toutes les livraisons.
+        coursiers: les coursiers par id ; vide tant qu'on n'en a pas créé
+            (sans coursier, aucune tournée ne peut être calculée).
         demande: la demande chargée ; None tant qu'aucun fichier ne l'a été.
     """
 
     def __init__(self, carte: RouteGraph):
         self.carte = carte
-        self.coursiers = {1: Coursier(1)}
+        self.coursiers: dict[int, Coursier] = {}
         self.demande: DemandeLivraisons | None = None
 
     def charger_demandes(self, fichier: str | Path) -> DemandeLivraisons:
