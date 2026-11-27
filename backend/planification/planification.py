@@ -18,7 +18,7 @@ from erreurs import (
 from livraisons.parseur_livraisons import DemandeLivraisons, charger_livraisons
 from routeGraph.routeGraph import RouteGraph
 from shortestPath.shortestPathFinder import ShortestPathFinder
-from tournee.tournee import Tournee
+from tournee.tournee import Passage, Tournee, TypeArret
 
 
 class Planification:
@@ -98,3 +98,26 @@ class Planification:
             self.carte, self.demande, coursier.livraisons
         ).calculer_tournee()
         return coursier.tournee
+
+    def points_non_assignes(self) -> list[Passage]:
+        """Enlèvements et livraisons de la demande qu'aucun coursier n'a,
+        avec leurs coordonnées pour les afficher sur la carte (sans horaires :
+        ils ne font partie d'aucune tournée).
+
+        Raises:
+            LivraisonsNonChargees: aucune demande chargée.
+        """
+        if self.demande is None:
+            raise LivraisonsNonChargees()
+        assignees = {l.id for c in self.coursiers.values() for l in c.livraisons}
+        points = []
+        for livraison in self.demande.livraisons:
+            if livraison.id in assignees:
+                continue
+            for type, adresse in (
+                (TypeArret.ENLEVEMENT, livraison.adresse_enlevement),
+                (TypeArret.LIVRAISON, livraison.adresse_livraison),
+            ):
+                node = self.carte.nodes[adresse]
+                points.append(Passage(adresse, node.latitude, node.longitude, type, livraison))
+        return points

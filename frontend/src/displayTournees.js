@@ -2,14 +2,18 @@ import L from 'leaflet';
 import { formatTime } from './displayLivraisons.js';
 
 // Icônes issues de Tabler Icons (https://tabler.io/icons, licence MIT) :
-// "package-export" pour l'enlèvement, "package-import" pour la livraison,
-// "building-warehouse" pour l'entrepôt.
-// Les deux icônes de colis dessinent le même colis, seule la flèche change.
+// "package" pour le colis, "building-warehouse" pour l'entrepôt.
+// Enlèvement et livraison : le même colis, réduit et décalé à gauche, avec à
+// sa droite une grande flèche verticale bien séparée (sinon elle se confond
+// avec les arêtes du cube) : vers le haut = on prend le colis, vers le bas =
+// on le dépose. stroke-width 2.5 = 2 / 0.8 : le trait du colis garde
+// l'épaisseur des autres malgré la réduction.
 const SVG_COLIS =
-  '<path d="M12 21l-8 -4.5v-9l8 -4.5l8 4.5v4.5" />' +
-  '<path d="M12 12l8 -4.5" /><path d="M12 12v9" /><path d="M12 12l-8 -4.5" />';
-const ENLEVEMENT = '<path d="M15 18h7" /><path d="M19 15l3 3l-3 3" />'; // flèche sortante
-const LIVRAISON = '<path d="M22 18h-7" /><path d="M18 15l-3 3l3 3" />';  // flèche entrante
+  '<g transform="translate(-1.5 2.4) scale(.8)" stroke-width="2.5">' +
+  '<path d="M12 3l8 4.5v9l-8 4.5l-8 -4.5v-9z" />' +
+  '<path d="M12 12l8 -4.5" /><path d="M12 12v9" /><path d="M12 12l-8 -4.5" /></g>';
+const ENLEVEMENT = '<path d="M20 21v-17" /><path d="M17 7l3 -3l3 3" />'; // flèche vers le haut
+const LIVRAISON = '<path d="M20 3v17" /><path d="M17 17l3 3l3 -3" />';  // flèche vers le bas
 const SVG_ENTREPOT =
   '<path d="M3 21v-13l9 -4l9 4v13" /><path d="M13 13h4v8h-10v-6h6" />' +
   '<path d="M13 21v-9a1 1 0 0 0 -1 -1h-2a1 1 0 0 0 -1 1v3" />';
@@ -53,6 +57,9 @@ const iconeEntrepot = L.divIcon({
   iconAnchor: [15, 15],
   popupAnchor: [0, -16],
 });
+
+// Gris des points qu'aucun coursier ne prend en charge.
+const GRIS = '#9e9e9e';
 
 // Une couleur par coursier (on reboucle si on dépasse la liste).
 const COULEURS = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#008080', '#9a6324', '#800000'];
@@ -127,6 +134,31 @@ export function displayTournees(data, coucheTournees, zone) {
       coucheTournees.addLayer(marqueur);
     }
   });
+}
+
+// Ajoute en gris les enlèvements et livraisons assignés à personne
+// (réponse de GET /api/points-non-assignes : mêmes champs qu'un point de chemin,
+// sans horaires). À appeler après displayTournees, qui vide la couche.
+export function displayPointsNonAssignes(points, coucheTournees, zone) {
+  if (points.length === 0) return;
+
+  const legende = document.createElement('p');
+  legende.innerHTML =
+    `<span style="color:${GRIS}">&#9632;</span> ` +
+    `Non assignées (${points.length / 2} livraison(s))`;
+  zone.appendChild(legende);
+
+  for (const point of points) {
+    const marqueur = L.marker([point.latitude, point.longitude], {
+      icon: iconeArret(point.type, GRIS, point.livraison.id),
+    });
+    marqueur.bindPopup(
+      `<b>${point.type.toUpperCase()}</b><br>Non assignée<br>` +
+      `Livraison ${point.livraison.id}<br>Adresse : ${point.adresse}`);
+    // Même pointillé que pour les tournées : `points` contient la paire.
+    relierPartenaireAuClic(marqueur, point, points, coucheTournees);
+    coucheTournees.addLayer(marqueur);
+  }
 }
 
 // Dessine le chemin en plusieurs polylignes : une par étape, d'un arrêt
