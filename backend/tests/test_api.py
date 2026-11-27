@@ -17,8 +17,10 @@ DEMANDE_GRAND9 = RESSOURCES / "demandeGrand9.xml"  # sur grandPlan
 def client():
     """Un client sur une API vide (aucune carte, aucune livraison)."""
     api.planification = None
+    api.current_coursier_id = 1
     yield TestClient(api.app)
     api.planification = None
+    api.current_coursier_id = 1
 
 
 def upload(client, url, chemin: Path):
@@ -123,10 +125,16 @@ class TestTournee:
         assert reponse.status_code == 400
         assert "livraison" in reponse.json()["detail"]
 
-    def test_tournee_calculee_sur_les_fichiers_uploades(self, client_avec_livraisons):
-        reponse = client_avec_livraisons.get("/api/tournee")
+    def test_tournee_calculee_apres_assignation(self, client_avec_livraisons):
+        client = client_avec_livraisons
+        client.post("/api/add-coursiers", json=[{"prenom": "Marie", "nom": "Dupont"}])
+        assert client.post("/api/coursiers/1/assignLivraisons", json=[1]).status_code == 200
+
+        reponse = client.get("/api/tournee")
         assert reponse.status_code == 200
-        chemin = reponse.json()["tournee"]["chemin"]
+        coursiers = reponse.json()
+        assert [c["id"] for c in coursiers] == [1]
+        chemin = coursiers[0]["tournee"]["chemin"]
         entrepot = 342873658  # adresse de l'entrepôt dans demandePetit1.xml
         assert chemin[0]["adresse"] == entrepot
         assert chemin[-1]["adresse"] == entrepot

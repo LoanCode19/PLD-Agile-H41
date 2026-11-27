@@ -31,22 +31,35 @@ def fichier_demandes(tmp_path: Path) -> Path:
     return chemin
 
 
-def test_charger_demandes_donne_les_livraisons_au_coursier(tmp_path):
+def test_charger_demandes_efface_livraisons_et_tournee_des_coursiers(tmp_path):
     planification = Planification(carte())
     demande = planification.charger_demandes(fichier_demandes(tmp_path))
-    assert planification.demande is demande
-    assert planification.coursier.livraisons == list(demande.livraisons)
-    assert planification.coursier.tournee is None
+    coursier = planification.coursiers[1]
+    coursier.livraisons = list(demande.livraisons)
+    planification.calculer_tournee(1)
+
+    nouvelle = planification.charger_demandes(fichier_demandes(tmp_path))
+    assert planification.demande is nouvelle
+    assert coursier.livraisons == []
+    assert coursier.tournee is None
 
 
-def test_calculer_tournee(tmp_path):
+def test_calculer_tournee_sur_les_livraisons_du_coursier(tmp_path):
+    planification = Planification(carte())
+    demande = planification.charger_demandes(fichier_demandes(tmp_path))
+    planification.coursiers[1].livraisons = list(demande.livraisons)
+    tournee = planification.calculer_tournee(1)
+    assert planification.coursiers[1].tournee is tournee
+    assert [arret.adresse for arret in tournee.arrets] == [1, 2, 3, 1]
+
+
+def test_calculer_tournee_sans_livraison_assignee(tmp_path):
     planification = Planification(carte())
     planification.charger_demandes(fichier_demandes(tmp_path))
-    tournee = planification.calculer_tournee()
-    assert planification.coursier.tournee is tournee
-    assert [arret.adresse for arret in tournee.arrets] == [1, 2, 3, 1]
+    with pytest.raises(ValueError, match="Aucune livraison assignée"):
+        planification.calculer_tournee(1)
 
 
 def test_calculer_tournee_sans_demande():
     with pytest.raises(ValueError, match="Aucune demande"):
-        Planification(carte()).calculer_tournee()
+        Planification(carte()).calculer_tournee(1)

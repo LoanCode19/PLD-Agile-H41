@@ -189,3 +189,12 @@ def assignLivraisonsToCoursier(id: int, livraisons: list[int]):
         coursier.livraisons, coursier.tournee = anciennes, ancienne_tournee
         raise HTTPException(status_code=400, detail=str(e)) from e
     return coursier
+
+
+@app.delete("/api/deleteAllLivraisonsForCoursiers")
+def deleteAllLivraisons():
+    """Supprime toutes les livraisons de la planification."""
+    p = planification_avec_carte()
+    for coursier in p.coursiers.values():
+        coursier.livraisons = []
+        coursier.tournee = None
