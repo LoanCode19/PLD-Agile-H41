@@ -24,23 +24,26 @@ class Planification:
 
     def __init__(self, carte: RouteGraph):
         self.carte = carte
-        self.coursier = Coursier(1)
+        self.coursiers = {1: Coursier(1)}
         self.demande: DemandeLivraisons | None = None
 
     def charger_demandes(self, fichier: str | Path) -> DemandeLivraisons:
-        """Charge un fichier XML de demandes ; ses livraisons reviennent au
-        coursier. L'ancienne tournée est effacée.
+        """Charge un fichier XML de demandes. Les livraisons et la tournée de
+        chaque coursier sont effacées, même si le fichier est invalide : elles
+        portaient sur l'ancienne demande.
 
         Raises:
             FichierLivraisonsInvalide: fichier illisible ou mal formé.
         """
+        for coursier in self.coursiers.values():
+            coursier.livraisons = []
+            coursier.tournee = None
         self.demande = charger_livraisons(fichier)
-        self.coursier.livraisons = list(self.demande.livraisons)
-        self.coursier.tournee = None
         return self.demande
 
-    def calculer_tournee(self) -> Tournee:
-        """Calcule la tournée du coursier pour la demande chargée.
+    def calculer_tournee(self, id: int) -> Tournee:
+        """Calcule la tournée du coursier pour les livraisons qui lui sont
+        assignées (la demande chargée donne l'entrepôt et l'heure de départ).
 
         Raises:
             ValueError: aucune demande chargée, adresse absente de la carte
@@ -48,7 +51,9 @@ class Planification:
         """
         if self.demande is None:
             raise ValueError("Aucune demande chargée")
-        self.coursier.tournee = ShortestPathFinder(
-            self.carte, self.demande
+        if not self.coursiers[id].livraisons:
+            raise ValueError(f"Aucune livraison assignée au coursier {id}")
+        self.coursiers[id].tournee = ShortestPathFinder(
+            self.carte, self.demande, self.coursiers[id].livraisons
         ).calculer_tournee()
-        return self.coursier.tournee
+        return self.coursiers[id].tournee
