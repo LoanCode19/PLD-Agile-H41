@@ -32,9 +32,26 @@ def upload_texte(client, url, contenu: str):
     return client.post(url, files={"file": ("fichier.xml", contenu.encode(), "text/xml")})
 
 
+def erreur(reponse, status: int, code: str) -> dict:
+    """Vérifie qu'une réponse est une erreur au format commun et la renvoie."""
+    assert reponse.status_code == status, reponse.text
+    corps = reponse.json()["erreur"]
+    assert corps["code"] == code
+    assert isinstance(corps["message"], str) and corps["message"]
+    assert isinstance(corps["details"], dict)
+    return corps
+
+
 @pytest.fixture
 def client_avec_carte(client):
     assert upload(client, "/api/upload-carte", PETIT_PLAN).status_code == 200
+    return client
+
+
+def ajouter_coursier(client):
+    """Crée le coursier 1 (une planification démarre sans coursier)."""
+    reponse = client.post("/api/add-coursiers", json=[{"prenom": "Marie", "nom": "Dupont"}])
+    assert reponse.status_code == 200
     return client
 
 
@@ -47,17 +64,14 @@ def client_avec_livraisons(client_avec_carte):
 
 class TestSansDonnees:
     def test_tournee_sans_carte(self, client):
-        reponse = client.get("/api/tournee")
-        assert reponse.status_code == 400
-        assert "carte" in reponse.json()["detail"]
+        erreur(client.get("/api/tournee"), 409, "CARTE_NON_CHARGEE")
 
     def test_route_graph_sans_carte(self, client):
-        assert client.get("/api/route-graph").status_code == 400
+        erreur(client.get("/api/route-graph"), 409, "CARTE_NON_CHARGEE")
 
     def test_livraisons_sans_carte(self, client):
         reponse = upload(client, "/api/upload-livraisons", DEMANDE_PETIT1)
-        assert reponse.status_code == 400
-        assert "carte" in reponse.json()["detail"]
+        erreur(reponse, 409, "CARTE_NON_CHARGEE")
 
 
 class TestUploadCarte:
@@ -70,24 +84,22 @@ class TestUploadCarte:
 
     def test_xml_mal_forme(self, client):
         reponse = upload_texte(client, "/api/upload-carte", "pas du xml")
-        assert reponse.status_code == 400
+        assert "XML mal formé" in erreur(reponse, 400, "CARTE_INVALIDE")["message"]
         assert api.planification is None
 
     def test_fichier_de_livraisons_a_la_place_de_la_carte(self, client):
         reponse = upload(client, "/api/upload-carte", DEMANDE_PETIT1)
-        assert reponse.status_code == 400
+        erreur(reponse, 400, "CARTE_INVALIDE")
         assert api.planification is None
 
     def test_carte_invalide_garde_l_ancienne(self, client_avec_livraisons):
         reponse = upload_texte(client_avec_livraisons, "/api/upload-carte", "pas du xml")
-        assert reponse.status_code == 400
+        erreur(reponse, 400, "CARTE_INVALIDE")
         assert client_avec_livraisons.get("/api/tournee").status_code == 200
 
     def test_nouvelle_carte_oublie_les_livraisons(self, client_avec_livraisons):
         upload(client_avec_livraisons, "/api/upload-carte", PETIT_PLAN)
-        reponse = client_avec_livraisons.get("/api/tournee")
-        assert reponse.status_code == 400
-        assert "livraison" in reponse.json()["detail"]
+        erreur(client_avec_livraisons.get("/api/tournee"), 409, "LIVRAISONS_NON_CHARGEES")
 
     def test_n_ecrit_rien_dans_ressources(self, client):
         avant = sorted(p.name for p in RESSOURCES.iterdir())
@@ -107,23 +119,22 @@ class TestUploadLivraisons:
 
     def test_xml_mal_forme(self, client_avec_carte):
         reponse = upload_texte(client_avec_carte, "/api/upload-livraisons", "pas du xml")
-        assert reponse.status_code == 400
+        erreur(reponse, 400, "LIVRAISONS_INVALIDES")
 
     def test_adresses_absentes_de_la_carte(self, client_avec_carte):
         reponse = upload(client_avec_carte, "/api/upload-livraisons", DEMANDE_GRAND9)
-        assert reponse.status_code == 400
-        assert "absentes de la carte" in reponse.json()["detail"]
+        corps = erreur(reponse, 400, "ADRESSES_INCONNUES")
+        assert "absentes de la carte" in corps["message"]
+        assert corps["details"]["adresses"]
 
     def test_fichier_invalide_oublie_les_anciennes_livraisons(self, client_avec_livraisons):
         upload_texte(client_avec_livraisons, "/api/upload-livraisons", "pas du xml")
-        assert client_avec_livraisons.get("/api/tournee").status_code == 400
+        erreur(client_avec_livraisons.get("/api/tournee"), 409, "LIVRAISONS_NON_CHARGEES")
 
 
 class TestTournee:
     def test_tournee_sans_livraisons(self, client_avec_carte):
-        reponse = client_avec_carte.get("/api/tournee")
-        assert reponse.status_code == 400
-        assert "livraison" in reponse.json()["detail"]
+        erreur(client_avec_carte.get("/api/tournee"), 409, "LIVRAISONS_NON_CHARGEES")
 
     def test_tournee_calculee_apres_assignation(self, client_avec_livraisons):
         client = client_avec_livraisons
@@ -140,3 +151,60 @@ class TestTournee:
         assert chemin[-1]["adresse"] == entrepot
         types = [p["type"] for p in chemin]
         assert types.index("enlevement") < types.index("livraison")
+
+
+    def test_coursier_sans_livraison_a_une_tournee_nulle(self, client_avec_livraisons):
+        ajouter_coursier(client_avec_livraisons)
+        coursiers = client_avec_livraisons.get("/api/tournee").json()
+        assert [c["tournee"] for c in coursiers] == [None]
+
+
+class TestAssignation:
+    def test_coursier_inconnu(self, client_avec_livraisons):
+        reponse = client_avec_livraisons.post("/api/coursiers/42/assignLivraisons", json=[1])
+        assert erreur(reponse, 404, "COURSIER_INCONNU")["details"] == {"coursier": 42}
+        erreur(client_avec_livraisons.get("/api/coursiers/42"), 404, "COURSIER_INCONNU")
+
+    def test_livraison_inconnue(self, client_avec_livraisons):
+        ajouter_coursier(client_avec_livraisons)
+        reponse = client_avec_livraisons.post("/api/coursiers/1/assignLivraisons", json=[1, 99])
+        assert erreur(reponse, 404, "LIVRAISONS_INCONNUES")["details"] == {"livraisons": [99]}
+
+    def test_sans_livraisons_chargees(self, client_avec_carte):
+        ajouter_coursier(client_avec_carte)
+        reponse = client_avec_carte.post("/api/coursiers/1/assignLivraisons", json=[1])
+        erreur(reponse, 409, "LIVRAISONS_NON_CHARGEES")
+
+    def test_tournee_impossible_remet_le_coursier_dans_son_etat(self, client_avec_livraisons, monkeypatch):
+        from erreurs import TourneeImpossible
+
+        def impossible(self, id):
+            raise TourneeImpossible("arrêts inaccessibles")
+        monkeypatch.setattr(api.Planification, "calculer_tournee", impossible)
+        ajouter_coursier(client_avec_livraisons)
+        reponse = client_avec_livraisons.post("/api/coursiers/1/assignLivraisons", json=[1])
+        erreur(reponse, 422, "TOURNEE_IMPOSSIBLE")
+        assert api.planification.coursiers[1].livraisons == []
+
+
+class TestFormatDesErreurs:
+    def test_bug_donne_une_500_lisible_avec_cors(self, client_avec_livraisons, monkeypatch):
+        def bug(self, id):
+            raise TypeError("bug de programmation")
+        monkeypatch.setattr(api.Planification, "calculer_tournee", bug)
+        ajouter_coursier(client_avec_livraisons)
+        reponse = client_avec_livraisons.post(
+            "/api/coursiers/1/assignLivraisons", json=[1],
+            headers={"Origin": "http://localhost:5173"},
+        )
+        corps = erreur(reponse, 500, "ERREUR_INTERNE")
+        assert "bug de programmation" not in corps["message"]  # pas de fuite interne
+        # sans cet en-tête, le navigateur cacherait la réponse au frontend
+        assert reponse.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+    def test_champ_file_absent(self, client):
+        corps = erreur(client.post("/api/upload-carte"), 422, "REQUETE_INVALIDE")
+        assert corps["details"]["erreurs"]
+
+    def test_route_inconnue(self, client):
+        erreur(client.get("/api/nexiste-pas"), 404, "HTTP_404")

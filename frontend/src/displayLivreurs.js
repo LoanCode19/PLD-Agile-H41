@@ -1,13 +1,5 @@
 import './displayLivreurs.css';
-
-const API = 'http://localhost:8080/api';
-
-// Renvoie le message d'erreur d'une réponse FastAPI : `detail` est un texte
-// pour une HTTPException, ou une liste d'erreurs pour une erreur de validation (422).
-function messageErreur(data, defaut) {
-  if (Array.isArray(data.detail)) return data.detail[0]?.msg || defaut;
-  return data.detail || defaut;
-}
+import { API, appelerApi } from './api.js';
 
 // `onChange(coursiers)` est appelé à chaque fois que la liste des coursiers
 // est relue depuis le backend (après un ajout ou un clic sur « Afficher »).
@@ -140,14 +132,9 @@ export function setupLivreurs(zone, { onChange } = {}) {
   // Renvoie false si la requête a échoué (le message d'erreur est affiché).
   async function chargerCoursiers() {
     try {
-      const response = await fetch(`${API}/coursiers`);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(messageErreur(data, 'Impossible de récupérer les livreurs'));
-      }
-      coursiersConnus = data;
+      coursiersConnus = await appelerApi(`${API}/coursiers`);
       afficherTable();
-      onChange?.(data);
+      onChange?.(coursiersConnus);
       return true;
     } catch (error) {
       afficherMessage(error.message, 'error');
@@ -206,15 +193,11 @@ export function setupLivreurs(zone, { onChange } = {}) {
 
     try {
       // Pas d'id : c'est le backend qui l'attribue.
-      const response = await fetch(`${API}/add-coursiers`, {
+      await appelerApi(`${API}/add-coursiers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(nouveaux)
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(messageErreur(data, 'Impossible d’envoyer les livreurs'));
-      }
 
       fermerFormulaire();
       // On relit la liste du backend pour afficher les ids qu'il a attribués.

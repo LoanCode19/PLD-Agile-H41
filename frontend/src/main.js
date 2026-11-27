@@ -3,8 +3,16 @@ import { displayTournees } from './displayTournees.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { setupLivreurs } from './displayLivreurs.js';
+import { API, ErreurApi, appelerApi } from './api.js';
 
-const API = 'http://localhost:8080/api';
+function afficherErreur(e, zoneAffichage) {
+  if (!(e instanceof ErreurApi)) {
+    zoneAffichage.textContent = 'Erreur inconnue';
+    return;
+  }
+  zoneAffichage.textContent = `Erreur : ${e.message}`;
+  zoneAffichage.style.color = '#d32f2f';
+}
 
 document.querySelector('#app').innerHTML = `
   <div style="margin-bottom: 20px;">
@@ -62,46 +70,13 @@ function effacerTournee() {
 }
 
 // Envoie le fichier choisi dans `input` à l'API (champ "file").
-// Renvoie le JSON de la réponse, ou null en cas d'erreur (affichée dans le statut).
+// Renvoie le JSON de la réponse, ou lance une ErreurApi en cas d'erreur.
+// (les gestionnaires 'change' ne l'appellent que si un fichier est choisi)
 async function uploader(input, url) {
-  if (input.files.length === 0) {
-    statut.textContent = "Veuillez d'abord sélectionner un fichier.";
-    return null;
-  }
   const formData = new FormData();
   formData.append('file', input.files[0]);
   statut.textContent = 'Upload en cours...';
-
-  try {
-    const response = await fetch(url, { method: 'POST', body: formData });
-    const data = await response.json();
-    if (!response.ok) {
-      statut.textContent = `Erreur : ${data.detail}`;
-      return null;
-    }
-    return data;
-  } catch (error) {
-    statut.textContent = `Erreur : impossible de contacter l'API (backend démarré ?)`;
-    return null;
-  }
-}
-
-// Appel JSON à l'API. Renvoie le JSON de la réponse ; lève une Error avec le
-// message du backend (`detail`) si la réponse n'est pas OK.
-async function appelApi(url, options = {}) {
-  let response;
-  try {
-    response = await fetch(url, options);
-  } catch (error) {
-    throw new Error("impossible de contacter l'API (backend démarré ?)");
-  }
-  const data = await response.json();
-  if (!response.ok) {
-    // detail : un texte (HTTPException) ou une liste d'erreurs (validation, 422).
-    const detail = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail;
-    throw new Error(detail || `erreur ${response.status}`);
-  }
-  return data;
+  return appelerApi(url, { method: 'POST', body: formData });
 }
 
 // Réaffiche la liste des livraisons avec les coursiers donnés
@@ -110,29 +85,39 @@ function afficherLivraisons(coursiers) {
   if (demandeCourante) displayLivraisons(demandeCourante, coursiers, zoneLivraisons);
 }
 
-// 1. Carte : une nouvelle carte oublie les livraisons précédentes.
+// 1. Carte : l'upload part dès qu'un fichier est choisi.
+// Une nouvelle carte oublie les livraisons précédentes.
 fileInputCarte.addEventListener('change', async () => {
-  if (fileInputCarte.files.length === 0) return // l'utilisateur a annulé la sélection du fichier
-  
-  const data = await uploader(fileInputCarte, `${API}/upload-carte`);
-  if (!data) return;
+  if (fileInputCarte.files.length === 0) return; // l'utilisateur a annulé la sélection du fichier
 
-  carteChargee = true;
-  erreurLivraisons.textContent = '';
-  effacerTournee();
-  demandeCourante = null;
-  zoneLivraisons.textContent = 'Aucune livraison chargée.';
-  fileInputLivraison.value = ''; // réinitialise le champ pour forcer l'utilisateur à re-sélectionner un fichier
-  boutonTournees.disabled = true;
-  statut.textContent =
-    `Carte chargée (${data.intersections} intersections). Uploadez maintenant les livraisons.`;
+  try {
+    const data = await uploader(fileInputCarte, `${API}/upload-carte`);
+    carteChargee = true;
+    erreurLivraisons.textContent = '';
+    effacerTournee();
+    demandeCourante = null;
+    zoneLivraisons.textContent = 'Aucune livraison chargée.';
+    fileInputLivraison.value = ''; // réinitialise le champ pour forcer l'utilisateur à re-sélectionner un fichier
+    boutonTournees.disabled = true;
+    statut.textContent =
+      `Carte chargée (${data.intersections} intersections). Uploadez maintenant les livraisons.`;
+    statut.style.color = '#333';
+  } catch (e) {
+    // Carte refusée : le backend garde l'ancienne carte (s'il y en avait une),
+    // donc carteChargee ne change pas.
+    afficherErreur(e, statut);
+    fileInputCarte.value = ''; // pour que re-choisir le même fichier (corrigé) relance l'upload
+  }
 });
 
-// 2. Livraisons : affichées en bas de la page, avec un choix de coursier
-// pour chacune. Le backend a effacé les anciennes assignations.
+// 2. Livraisons : l'upload part dès qu'un fichier est choisi ; affichées en
+// bas de la page, avec un choix de coursier pour chacune. Le backend a effacé
+// les anciennes assignations.
 fileInputLivraison.addEventListener('change', async () => {
-  if (fileInputLivraison.files.length === 0) return // l'utilisateur a annulé la sélection du fichier
+  if (fileInputLivraison.files.length === 0) return; // l'utilisateur a annulé la sélection du fichier
 
+  // Vérification côté front pour éviter un appel inutile (le backend
+  // répondrait de toute façon CARTE_NON_CHARGEE).
   if (!carteChargee) {
     erreurLivraisons.textContent = "Veuillez d'abord uploader la carte.";
     fileInputLivraison.value = ''; // vide le champ pour que l'utilisateur puisse réessayer
@@ -140,27 +125,30 @@ fileInputLivraison.addEventListener('change', async () => {
   }
   erreurLivraisons.textContent = '';
 
-  const data = await uploader(fileInputLivraison, `${API}/upload-livraisons`);
   effacerTournee();
   zoneLivraisons.replaceChildren(); // les anciens choix ne valent plus
-  if (!data) {
+  try {
+    demandeCourante = await uploader(fileInputLivraison, `${API}/upload-livraisons`);
+  } catch (e) {
+    afficherErreur(e, statut);
     // En cas d'erreur le backend n'a plus de livraisons chargées.
     demandeCourante = null;
     zoneLivraisons.textContent = 'Aucune livraison chargée.';
     boutonTournees.disabled = true;
+    fileInputLivraison.value = ''; // pour que re-choisir le même fichier (corrigé) relance l'upload
     return;
   }
 
-  demandeCourante = data;
   try {
-    afficherLivraisons(await appelApi(`${API}/coursiers`));
-  } catch (error) {
-    statut.textContent = `Erreur : ${error.message}`;
+    afficherLivraisons(await appelerApi(`${API}/coursiers`));
+  } catch (e) {
+    afficherErreur(e, statut);
     return;
   }
   boutonTournees.disabled = false;
   statut.textContent =
     'Livraisons chargées. Choisissez un coursier pour chacune, puis calculez les tournées.';
+  statut.style.color = '#333';
 });
 
 // 3. Calcul : on envoie les choix des listes déroulantes au backend
@@ -178,22 +166,26 @@ boutonTournees.addEventListener('click', async () => {
   statut.textContent = 'Calcul des tournées en cours...';
   try {
     // Le vidage doit être terminé avant les assignations (await).
-    await appelApi(`${API}/deleteAllLivraisonsForCoursiers`, { method: 'DELETE' });
+    await appelerApi(`${API}/deleteAllLivraisonsForCoursiers`, { method: 'DELETE' });
     for (const [idCoursier, idsLivraisons] of assignations) {
-      await appelApi(`${API}/coursiers/${idCoursier}/assignLivraisons`, {
+      await appelerApi(`${API}/coursiers/${idCoursier}/assignLivraisons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(idsLivraisons)
       });
     }
-    displayTournees(await appelApi(`${API}/tournee`), tourneeLayer, zoneTournees);
+    displayTournees(await appelerApi(`${API}/tournee`), tourneeLayer, zoneTournees);
     statut.textContent = 'Tournées calculées.';
-  } catch (error) {
+    statut.style.color = '#333';
+    boutonTournees.disabled = false;
+  } catch (e) {
     // Une partie des assignations a pu être faite : on n'affiche rien de faux.
     effacerTournee();
-    statut.textContent = `Erreur : ${error.message}`;
-  } finally {
-    boutonTournees.disabled = false;
+    afficherErreur(e, zoneTournees);
+    // Le backend n'a plus de carte ou de livraisons : rien à recalculer tant
+    // qu'on ne les a pas (re)chargées.
+    const plusDeDonnees = e.code === 'CARTE_NON_CHARGEE' || e.code === 'LIVRAISONS_NON_CHARGEES';
+    boutonTournees.disabled = plusDeDonnees;
   }
 });
 

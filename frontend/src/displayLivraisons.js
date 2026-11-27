@@ -52,13 +52,9 @@ export function lireAssignations(zone) {
 // choix en cours sont conservés ; sinon on présélectionne le coursier auquel
 // le backend a déjà assigné la livraison.
 export function displayLivraisons(data, coursiers, zone) {
+  // Les erreurs sont traitées avant (appelerApi) : `data` est toujours valide.
   const choixEnCours = choixActuels(zone);
   zone.innerHTML = '';
-
-  if (data.detail) {
-    zone.textContent = `Erreur : ${data.detail}`;
-    return;
-  }
 
   // idLivraison -> idCoursier, d'après le backend.
   const assigneeA = new Map();
