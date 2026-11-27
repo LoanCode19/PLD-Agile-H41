@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from erreurs import TourneeImpossible
 from livraisons.parseur_livraisons import (
     DemandeLivraisons,
     Livraison,
@@ -211,7 +212,7 @@ def test_arret_inaccessible():
     g = graphe([(1, 2, 100), (2, 1, 100)])
     g.add_node(3, 45.0, 4.0)  # aucun tronçon n'y mène
     demande = DemandeLivraisons(1, HEURE_DEPART, (Livraison(1, 2, 3, 0, 0),))
-    with pytest.raises(ValueError):
+    with pytest.raises(TourneeImpossible):
         ShortestPathFinder(g, demande).calculer_tournee()
 
 

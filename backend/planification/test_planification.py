@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from erreurs import AdressesInconnues, LivraisonsNonChargees
 from planification.planification import Planification
 from routeGraph.routeGraph import RouteGraph
 
@@ -48,5 +49,21 @@ def test_calculer_tournee(tmp_path):
 
 
 def test_calculer_tournee_sans_demande():
-    with pytest.raises(ValueError, match="Aucune demande"):
+    with pytest.raises(LivraisonsNonChargees):
         Planification(carte()).calculer_tournee()
+
+
+def test_charger_demandes_adresse_inconnue_oublie_l_ancienne(tmp_path):
+    planification = Planification(carte())
+    planification.charger_demandes(fichier_demandes(tmp_path))
+    mauvais = tmp_path / "mauvais.xml"
+    mauvais.write_text(
+        fichier_demandes(tmp_path).read_text(encoding="utf-8")
+        .replace('adresseLivraison="3"', 'adresseLivraison="99"'),
+        encoding="utf-8",
+    )
+    with pytest.raises(AdressesInconnues) as erreur:
+        planification.charger_demandes(mauvais)
+    assert erreur.value.details == {"adresses": [99]}
+    assert planification.demande is None
+    assert planification.coursier.livraisons == []

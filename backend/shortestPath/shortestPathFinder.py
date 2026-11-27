@@ -1,6 +1,7 @@
 import heapq
 import math
 
+from erreurs import AdressesInconnues, TourneeImpossible
 from livraisons.parseur_livraisons import DemandeLivraisons, Livraison
 from routeGraph.routeGraph import Edge, RouteGraph
 from tournee.tournee import Passage, Tournee, TypeArret
@@ -25,7 +26,9 @@ class ShortestPathFinder:
 
         inconnues = [a for a in self.arrets if a not in graph]
         if inconnues:
-            raise ValueError(f"Adresses absentes du plan : {inconnues}")
+            # Déjà vérifié au chargement (Planification.charger_demandes) ;
+            # gardé comme filet de sécurité quand la classe est utilisée seule.
+            raise AdressesInconnues(inconnues)
 
         adresses = set(self.arrets)
 
@@ -205,7 +208,10 @@ class ShortestPathFinder:
                 meilleur_etat = etat
                 meilleure_distance = totale
         if meilleur_etat is None:
-            raise ValueError("Aucune tournée possible : arrêts inaccessibles")
+            raise TourneeImpossible(
+                "Aucune tournée possible : certains arrêts sont inaccessibles "
+                "depuis l'entrepôt (ou ne permettent pas d'y revenir)"
+            )
         return meilleur_etat
 
     def _reconstruire_ordre(
