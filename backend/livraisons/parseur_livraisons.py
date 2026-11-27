@@ -23,6 +23,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from dataclasses import dataclass
 
+from erreurs import FichierLivraisonsInvalide  # noqa: F401 (re-exportee)
+
 
 
 @dataclass(frozen=True)
@@ -68,10 +70,6 @@ class DemandeLivraisons:
 
 
 RACINE_ATTENDEUE = "demandeDeLivraisons"
-
-class FichierLivraisonsInvalide(Exception):
-    """Le fichier XML ne respecte pas le format attendu."""
-
 
 def _attribut(element: ET.Element, nom: str, contexte: str) -> str:
     """Renvoie un attribut obligatoire, ou leve une erreur claire."""

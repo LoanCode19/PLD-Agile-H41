@@ -121,10 +121,10 @@ Le dossier `ressources/` ne contient **pas de code** : seulement des fichiers de
 
 | Méthode | URL                          | Description                                                                 | Corps de requête | Réponse                                   |
 |---------|------------------------------|-----------------------------------------------------------------------------|------------------|-------------------------------------------|
-| `POST`  | `/api/upload-carte`          | Charge une carte (remplace la précédente, oublie les livraisons)            | `file` (XML plan)       | `200` + `{"intersections": n, "troncons": m}`, `400` si fichier invalide |
-| `POST`  | `/api/upload-livraisons`     | Charge une demande de livraisons sur la carte chargée                       | `file` (XML demande)    | `200` + `DemandeLivraisons`, `400` si pas de carte, fichier invalide ou adresse absente de la carte |
-| `GET`   | `/api/route-graph`           | Graphe de la carte chargée (intersections + tronçons)                       | -                | `200` + `RouteGraph`, `400` si pas de carte |
-| `GET`   | `/api/tournee`               | Calcule la tournée pour la carte et les livraisons chargées                 | -                | `200` + `Coursier`, `400` si pas de carte / livraisons ou erreur de calcul |
+| `POST`  | `/api/upload-carte`          | Charge une carte (remplace la précédente, oublie les livraisons)            | `file` (XML plan)       | `200` + `{"intersections": n, "troncons": m}`, `400` si fichier invalide (l'ancienne carte est gardée) |
+| `POST`  | `/api/upload-livraisons`     | Charge une demande de livraisons sur la carte chargée                       | `file` (XML demande)    | `200` + `DemandeLivraisons`, `409` si pas de carte, `400` si fichier invalide ou adresse absente de la carte |
+| `GET`   | `/api/route-graph`           | Graphe de la carte chargée (intersections + tronçons)                       | -                | `200` + `RouteGraph`, `409` si pas de carte |
+| `GET`   | `/api/tournee`               | Calcule la tournée pour la carte et les livraisons chargées                 | -                | `200` + `Coursier`, `409` si pas de carte / livraisons, `422` si tournée impossible |
 
 Les deux `upload-*` reçoivent le fichier en `multipart/form-data` (champ `file`), pas en JSON. Les fichiers uploadés ne sont pas enregistrés sur le disque.
 
@@ -153,21 +153,39 @@ Les deux `upload-*` reçoivent le fichier en `multipart/form-data` (champ `file`
 
 ### Format des erreurs
 
-Les erreurs sont levées via `HTTPException` de FastAPI, qui renvoie :
+Toutes les erreurs de l'API ont le même format :
 
 ```json
 {
-  "detail": "Description lisible de l'erreur"
+  "erreur": {
+    "code": "ADRESSES_INCONNUES",
+    "message": "Adresses absentes de la carte : [123] (mauvaise carte ?)",
+    "details": { "adresses": [123] }
+  }
 }
 ```
 
-| Code  | Signification                      |
-|-------|------------------------------------|
-| `200` | OK                                 |
-| `201` | Ressource créée                    |
-| `400` | Requête invalide                   |
-| `404` | Ressource introuvable              |
-| `500` | Erreur serveur                     |
+- `code` : identifiant **stable**, à tester côté frontend pour réagir à un cas précis ;
+- `message` : texte lisible, à afficher tel quel à l'utilisateur (il peut changer) ;
+- `details` : données complémentaires, souvent vide (`{}`).
+
+| HTTP  | `code`                    | Quand                                                     |
+|-------|---------------------------|-----------------------------------------------------------|
+| `400` | `CARTE_INVALIDE`          | Fichier de carte illisible ou mal formé                   |
+| `400` | `LIVRAISONS_INVALIDES`    | Fichier de livraisons illisible ou mal formé              |
+| `400` | `ADRESSES_INCONNUES`      | Adresse de la demande absente de la carte (`details.adresses`) |
+| `409` | `CARTE_NON_CHARGEE`       | Action qui demande une carte, avant tout upload de carte  |
+| `409` | `LIVRAISONS_NON_CHARGEES` | Calcul de tournée sans livraisons chargées                |
+| `422` | `TOURNEE_IMPOSSIBLE`      | Arrêts inaccessibles depuis l'entrepôt                    |
+| `422` | `REQUETE_INVALIDE`        | Requête mal construite (ex : champ `file` absent ; `details.erreurs`) |
+| `404`… | `HTTP_404`…              | Route inconnue, méthode non autorisée...                  |
+| `500` | `ERREUR_INTERNE`          | Bug côté serveur (la trace est dans les logs du backend)  |
+
+Côté backend, les erreurs prévues sont des sous-classes de `ErreurMetier`
+(voir `backend/erreurs.py`). Le code métier les lève sans connaître HTTP ;
+`api.py` les convertit en réponse JSON. Pour un nouveau cas d'erreur, créer
+une sous-classe seulement si le frontend doit y réagir différemment ; sinon,
+réutiliser une classe existante avec un autre message.
 
 ## Formats des fichiers d'entree
 
