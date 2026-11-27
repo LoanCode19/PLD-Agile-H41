@@ -25,12 +25,13 @@ class Planification:
 
     def __init__(self, carte: RouteGraph):
         self.carte = carte
-        self.coursier = Coursier(1)
+        self.coursiers = {1: Coursier(1)}
         self.demande: DemandeLivraisons | None = None
 
     def charger_demandes(self, fichier: str | Path) -> DemandeLivraisons:
-        """Charge un fichier XML de demandes ; ses livraisons reviennent au
-        coursier. L'ancienne tournée est effacée.
+        """Charge un fichier XML de demandes. Les livraisons et la tournée de
+        chaque coursier sont effacées, même si le fichier est invalide : elles
+        portaient sur l'ancienne demande.
 
         Si le fichier est refusé, l'ancienne demande est oubliée aussi :
         aucune demande n'est alors chargée.
@@ -58,20 +59,33 @@ class Planification:
         if inconnues:
             raise AdressesInconnues(inconnues)
 
+        for coursier in self.coursiers.values():
+            coursier.livraisons = []
+            coursier.tournee = None
+    
         self.demande = demande
         self.coursier.livraisons = list(demande.livraisons)
         return demande
 
-    def calculer_tournee(self) -> Tournee:
-        """Calcule la tournée du coursier pour la demande chargée.
+    def calculer_tournee(self, id: int) -> Tournee:
+        """Calcule la tournée du coursier pour les livraisons qui lui sont
+        assignées (la demande chargée donne l'entrepôt et l'heure de départ).
 
         Raises:
             LivraisonsNonChargees: aucune demande chargée.
             TourneeImpossible: un arrêt est inaccessible.
         """
         if self.demande is None:
+<<<<<<< HEAD
             raise LivraisonsNonChargees()
         self.coursier.tournee = ShortestPathFinder(
             self.carte, self.demande
+=======
+            raise ValueError("Aucune demande chargée")
+        if not self.coursiers[id].livraisons:
+            raise ValueError(f"Aucune livraison assignée au coursier {id}")
+        self.coursiers[id].tournee = ShortestPathFinder(
+            self.carte, self.demande, self.coursiers[id].livraisons
+>>>>>>> 5cd0ed38cde6a615430f739c7cfe6b84364501d3
         ).calculer_tournee()
-        return self.coursier.tournee
+        return self.coursiers[id].tournee

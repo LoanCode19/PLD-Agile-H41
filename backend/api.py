@@ -4,13 +4,12 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, File, Request, UploadFile, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from coursier.coursier import Coursier
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-
-from coursier.coursier import Coursier
 from erreurs import CarteNonChargee, ErreurMetier
 from livraisons.parseur_livraisons import DemandeLivraisons
 from planification.planification import Planification
@@ -82,6 +81,7 @@ app.add_middleware(
 # Une seule planification, gardée en mémoire entre les appels.
 # None tant qu'aucune carte n'a été uploadée.
 planification: Planification | None = None
+current_coursier_id = 1  # l'id du coursier pour être sûr d'éviter les conflits
 
 
 def lire_upload(file: UploadFile, charger):
@@ -99,12 +99,19 @@ def lire_upload(file: UploadFile, charger):
 def charger_carte(chemin: Path) -> RouteGraph:
     carte = RouteGraph()
     carte.construct_from_xml(chemin)
+    if carte.node_count == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Fichier invalide : ce n'est pas une carte (aucune intersection)",
+        )
     return carte
 
 
 def planification_avec_carte() -> Planification:
     if planification is None:
-        raise CarteNonChargee()
+        raise HTTPException(
+            status_code=400, detail="Aucune carte chargée : uploadez d'abord une carte"
+        )
     return planification
 
 
@@ -125,8 +132,25 @@ async def upload_livraisons(file: UploadFile = File(...)):
     """Charge une demande de livraisons sur la carte déjà chargée.
     Si le fichier est invalide, plus aucune livraison n'est chargée."""
     p = planification_avec_carte()
-    # charger_demandes vérifie le format ET que les adresses sont sur la carte
-    return lire_upload(file, p.charger_demandes)
+
+    def charger(chemin: Path) -> DemandeLivraisons:
+        p.demande = (
+            None  # si le nouveau fichier est invalide, plus aucune livraison chargée
+        )
+        p.charger_demandes(chemin)
+        adresses = [p.demande.adresse_entrepot]
+        for l in p.demande.livraisons:
+            adresses += [l.adresse_enlevement, l.adresse_livraison]
+        inconnues = [a for a in adresses if a not in p.carte]
+        if inconnues:
+            p.demande = None
+            raise HTTPException(
+                status_code=400,
+                detail=f"Adresses absentes de la carte : {inconnues[:5]} (mauvaise carte ?)",
+            )
+        return p.demande
+
+    return lire_upload(file, charger)
 
 
 @app.get("/api/route-graph")
@@ -134,9 +158,100 @@ async def get_route_graph():
     return planification_avec_carte().carte
 
 
-@app.get("/api/tournee", response_model=Coursier)
+@app.get("/api/tournee", response_model=list[Coursier])
 async def get_tournee():
     """Calcule la tournée pour la carte et les livraisons uploadées."""
     p = planification_avec_carte()
-    p.calculer_tournee()  # LivraisonsNonChargees si aucune demande
-    return p.coursier
+    if p.demande is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Aucune livraison chargée : uploadez d'abord les livraisons",
+        )
+    try:
+        return [coursier for coursier in p.coursiers.values()]
+    except ValueError as e:  # arrêt inaccessible...
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.post("/api/add-coursiers", response_model=list[Coursier])
+async def add_coursier(coursiers: list[Coursier]):
+    """Ajoute les coursiers à ceux qui existent déjà. Les ids continuent
+    depuis le dernier attribué (le compteur n'est jamais remis à 1)."""
+    global current_coursier_id
+    p = planification_avec_carte()
+    for coursier in coursiers:
+        coursier.id = current_coursier_id
+        current_coursier_id += 1
+        p.coursiers[coursier.id] = coursier
+    return coursiers
+
+
+@app.get("/api/coursiers", response_model=list[Coursier])
+async def get_coursiers():
+    """Retourne la liste des coursiers de la planification."""
+    global planification
+    if planification is None:
+        raise HTTPException(
+            status_code=400, detail="Aucune carte chargée : uploadez d'abord une carte"
+        )
+    return list(planification.coursiers.values())
+
+
+@app.get("/api/coursiers/{id}", response_model=Coursier)
+def getCoursierById(id: int):
+    """Retourne le coursier correspondant à l'id donné."""
+    p = planification_avec_carte()
+    if id not in p.coursiers:
+        raise HTTPException(status_code=404, detail=f"Aucun coursier avec l'id {id}")
+    return p.coursiers[id]
+
+
+@app.post("/api/coursiers/{id}/assignLivraisons", response_model=Coursier)
+def assignLivraisonsToCoursier(id: int, livraisons: list[int]):
+    """Assigne les livraisons (par leurs ids, ex. [1, 3]) au coursier et
+    calcule sa tournée.
+
+    La liste remplace les livraisons qu'il avait avant ; une liste vide le
+    laisse sans livraison ni tournée. En cas d'erreur, le coursier n'est pas
+    modifié.
+    """
+    p = planification_avec_carte()
+    if id not in p.coursiers:
+        raise HTTPException(status_code=404, detail=f"Aucun coursier avec l'id {id}")
+    if p.demande is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Aucune livraison chargée : uploadez d'abord les livraisons",
+        )
+
+    # On vérifie tous les ids avant de toucher au coursier.
+    par_id = {l.id: l for l in p.demande.livraisons}
+    inconnues = [i for i in livraisons if i not in par_id]
+    if inconnues:
+        raise HTTPException(
+            status_code=404, detail=f"Aucune livraison avec l'id {inconnues}"
+        )
+
+    coursier = p.coursiers[id]
+    anciennes, ancienne_tournee = coursier.livraisons, coursier.tournee
+    # dict.fromkeys : retire les doublons en gardant l'ordre.
+    coursier.livraisons = [par_id[i] for i in dict.fromkeys(livraisons)]
+
+    if not coursier.livraisons:
+        coursier.tournee = None
+        return coursier
+    try:
+        p.calculer_tournee(id)
+    except ValueError as e:  # arrêt inaccessible... : on remet l'état d'avant
+        coursier.livraisons, coursier.tournee = anciennes, ancienne_tournee
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return coursier
+
+
+@app.delete("/api/deleteAllLivraisonsForCoursiers")
+def deleteAllLivraisons():
+    """Supprime toutes les livraisons de la planification."""
+    p = planification_avec_carte()
+    for coursier in p.coursiers.values():
+        coursier.livraisons = []
+        coursier.tournee = None
