@@ -153,14 +153,12 @@ fileInputLivraison.addEventListener('change', async () => {
 
 // 3. Calcul : on envoie les choix des listes déroulantes au backend
 // (on vide toutes les assignations, puis on assigne coursier par coursier),
-// puis on affiche les tournées qu'il a calculées.
+// puis on affiche les tournées qu'il a calculées et, en gris, les livraisons
+// sans coursier. Sans aucune assignation, on passe quand même par le vidage
+// (le backend peut garder des assignations d'un calcul précédent) : on ne
+// voit alors que les points gris.
 boutonTournees.addEventListener('click', async () => {
   const assignations = lireAssignations(zoneLivraisons);
-  if (assignations.size === 0) {
-    statut.textContent =
-      'Assignez au moins une livraison à un livreur (ajoutez des livreurs si la liste est vide).';
-    return;
-  }
 
   boutonTournees.disabled = true;
   statut.textContent = 'Calcul des tournées en cours...';
@@ -176,7 +174,9 @@ boutonTournees.addEventListener('click', async () => {
     }
     displayTournees(await appelerApi(`${API}/tournee`), tourneeLayer, zoneTournees);
     displayPointsNonAssignes(await appelerApi(`${API}/points-non-assignes`), tourneeLayer, zoneTournees);
-    statut.textContent = 'Tournées calculées.';
+    statut.textContent = assignations.size === 0
+      ? 'Aucune livraison assignée : seules les livraisons non assignées sont affichées.'
+      : 'Tournées calculées.';
     statut.style.color = '#333';
     boutonTournees.disabled = false;
   } catch (e) {
