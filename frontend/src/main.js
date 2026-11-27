@@ -3,37 +3,7 @@ import { displayTournees } from './displayTournees.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { setupLivreurs } from './displayLivreurs.js';
-
-const API = 'http://localhost:8080/api';
-
-// === Gestion centralisée des erreurs ===
-export class ErreurApi extends Error {
-  constructor(code, message, details = {}) {
-    super(message);
-    this.code = code;
-    this.details = details;
-  }
-}
-
-export async function appelerApi(url, options = {}) {
-  let response;
-  try {
-    response = await fetch(url, options);
-  } catch {
-    throw new ErreurApi('RESEAU', "Impossible de contacter l'API (backend démarré ?)");
-  }
-
-  const data = await response.json().catch(() => null);
-  if (!response.ok) {
-    const e = data?.erreur;
-    throw new ErreurApi(
-      e?.code ?? 'INCONNUE',
-      e?.message ?? `Erreur ${response.status}`,
-      e?.details
-    );
-  }
-  return data;
-}
+import { API, ErreurApi, appelerApi } from './api.js';
 
 function afficherErreur(e, zoneAffichage) {
   if (!(e instanceof ErreurApi)) {
@@ -105,10 +75,7 @@ async function uploader(input, url) {
   const formData = new FormData();
   formData.append('file', input.files[0]);
   statut.textContent = 'Upload en cours...';
-
-  const formData2 = new FormData();
-  formData2.append('file', input.files[0]);
-  return appelerApi(url, { method: 'POST', body: formData2 });
+  return appelerApi(url, { method: 'POST', body: formData });
 }
 
 // 1. Carte : une nouvelle carte oublie les livraisons précédentes.
@@ -153,7 +120,9 @@ boutonTournees.addEventListener('click', async () => {
     statut.style.color = '#333';
   } catch (e) {
     afficherErreur(e, zoneTournees);
-    if (e.code === 'ETAT_INVALIDE') {
+    // Le backend n'a plus de carte ou de livraisons : rien à afficher tant
+    // qu'on ne les a pas (re)chargées.
+    if (e.code === 'CARTE_NON_CHARGEE' || e.code === 'LIVRAISONS_NON_CHARGEES') {
       boutonTournees.disabled = true;
     }
   }

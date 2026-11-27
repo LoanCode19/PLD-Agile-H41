@@ -21,12 +21,8 @@ function formatDuration(seconds) {
 }
 
 export function displayLivraisons(data, zone) {
+  // Les erreurs sont traitées avant (appelerApi) : `data` est toujours valide.
   zone.innerHTML = '';
-
-  if (data.detail) {
-    zone.textContent = `Erreur : ${data.detail}`;
-    return;
-  }
 
   const summary = document.createElement('p');
 

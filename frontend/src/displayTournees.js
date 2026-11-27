@@ -72,17 +72,12 @@ export function displayTournees(data, coucheTournees, zone) {
   coucheTournees.clearLayers();
   zone.replaceChildren();
 
-  // Erreur renvoyée par l'API ({ detail: "..." }) ou réponse vide.
-  if (!data || data.detail) {
-    zone.textContent = `Erreur : ${data?.detail ?? "aucune réponse de l'API"}`;
-    return;
-  }
-
   const coursiers = (Array.isArray(data) ? data : [data])
     .filter(c => c?.tournee?.chemin?.length > 0);
 
+  // La tournée d'un coursier est calculée quand on lui assigne des livraisons.
   if (coursiers.length === 0) {
-    zone.textContent = 'Aucune tournée calculée.';
+    zone.textContent = 'Aucune tournée calculée : assignez des livraisons à un livreur.';
     return;
   }
 

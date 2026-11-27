@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from erreurs import AdressesInconnues, LivraisonsNonChargees
+from erreurs import (
+    AdressesInconnues,
+    AucuneLivraisonAssignee,
+    CoursierInconnu,
+    LivraisonsNonChargees,
+)
 from planification.planification import Planification
 from routeGraph.routeGraph import RouteGraph
 
@@ -57,8 +62,15 @@ def test_calculer_tournee_sur_les_livraisons_du_coursier(tmp_path):
 def test_calculer_tournee_sans_livraison_assignee(tmp_path):
     planification = Planification(carte())
     planification.charger_demandes(fichier_demandes(tmp_path))
-    with pytest.raises(ValueError, match="Aucune livraison assignée"):
+    with pytest.raises(AucuneLivraisonAssignee):
         planification.calculer_tournee(1)
+
+
+def test_calculer_tournee_coursier_inconnu(tmp_path):
+    planification = Planification(carte())
+    planification.charger_demandes(fichier_demandes(tmp_path))
+    with pytest.raises(CoursierInconnu):
+        planification.calculer_tournee(42)
 
 
 def test_calculer_tournee_sans_demande():

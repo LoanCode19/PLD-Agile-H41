@@ -146,21 +146,44 @@ class TestTournee:
         assert types.index("enlevement") < types.index("livraison")
 
 
-class TestFormatDesErreurs:
-    def test_tournee_impossible(self, client_avec_livraisons, monkeypatch):
+    def test_coursier_sans_livraison_a_une_tournee_nulle(self, client_avec_livraisons):
+        coursiers = client_avec_livraisons.get("/api/tournee").json()
+        assert [c["tournee"] for c in coursiers] == [None]
+
+
+class TestAssignation:
+    def test_coursier_inconnu(self, client_avec_livraisons):
+        reponse = client_avec_livraisons.post("/api/coursiers/42/assignLivraisons", json=[1])
+        assert erreur(reponse, 404, "COURSIER_INCONNU")["details"] == {"coursier": 42}
+        erreur(client_avec_livraisons.get("/api/coursiers/42"), 404, "COURSIER_INCONNU")
+
+    def test_livraison_inconnue(self, client_avec_livraisons):
+        reponse = client_avec_livraisons.post("/api/coursiers/1/assignLivraisons", json=[1, 99])
+        assert erreur(reponse, 404, "LIVRAISONS_INCONNUES")["details"] == {"livraisons": [99]}
+
+    def test_sans_livraisons_chargees(self, client_avec_carte):
+        reponse = client_avec_carte.post("/api/coursiers/1/assignLivraisons", json=[1])
+        erreur(reponse, 409, "LIVRAISONS_NON_CHARGEES")
+
+    def test_tournee_impossible_remet_le_coursier_dans_son_etat(self, client_avec_livraisons, monkeypatch):
         from erreurs import TourneeImpossible
 
-        def impossible(self):
+        def impossible(self, id):
             raise TourneeImpossible("arrêts inaccessibles")
         monkeypatch.setattr(api.Planification, "calculer_tournee", impossible)
-        erreur(client_avec_livraisons.get("/api/tournee"), 422, "TOURNEE_IMPOSSIBLE")
+        reponse = client_avec_livraisons.post("/api/coursiers/1/assignLivraisons", json=[1])
+        erreur(reponse, 422, "TOURNEE_IMPOSSIBLE")
+        assert api.planification.coursiers[1].livraisons == []
 
+
+class TestFormatDesErreurs:
     def test_bug_donne_une_500_lisible_avec_cors(self, client_avec_livraisons, monkeypatch):
-        def bug(self):
+        def bug(self, id):
             raise TypeError("bug de programmation")
         monkeypatch.setattr(api.Planification, "calculer_tournee", bug)
-        reponse = client_avec_livraisons.get(
-            "/api/tournee", headers={"Origin": "http://localhost:5173"}
+        reponse = client_avec_livraisons.post(
+            "/api/coursiers/1/assignLivraisons", json=[1],
+            headers={"Origin": "http://localhost:5173"},
         )
         corps = erreur(reponse, 500, "ERREUR_INTERNE")
         assert "bug de programmation" not in corps["message"]  # pas de fuite interne

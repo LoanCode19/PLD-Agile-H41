@@ -124,7 +124,12 @@ Le dossier `ressources/` ne contient **pas de code** : seulement des fichiers de
 | `POST`  | `/api/upload-carte`          | Charge une carte (remplace la précédente, oublie les livraisons)            | `file` (XML plan)       | `200` + `{"intersections": n, "troncons": m}`, `400` si fichier invalide (l'ancienne carte est gardée) |
 | `POST`  | `/api/upload-livraisons`     | Charge une demande de livraisons sur la carte chargée                       | `file` (XML demande)    | `200` + `DemandeLivraisons`, `409` si pas de carte, `400` si fichier invalide ou adresse absente de la carte |
 | `GET`   | `/api/route-graph`           | Graphe de la carte chargée (intersections + tronçons)                       | -                | `200` + `RouteGraph`, `409` si pas de carte |
-| `GET`   | `/api/tournee`               | Calcule la tournée pour la carte et les livraisons chargées                 | -                | `200` + `Coursier`, `409` si pas de carte / livraisons, `422` si tournée impossible |
+| `GET`   | `/api/tournee`               | Tous les coursiers avec leur tournée (calculée à l'assignation, `null` si aucune livraison) | -  | `200` + `Coursier[]`, `409` si pas de carte / livraisons |
+| `POST`  | `/api/add-coursiers`         | Ajoute des coursiers (le backend attribue les ids)                          | JSON `[{prenom, nom}]` | `200` + `Coursier[]`, `409` si pas de carte |
+| `GET`   | `/api/coursiers`             | Liste des coursiers                                                         | -                | `200` + `Coursier[]`, `409` si pas de carte |
+| `GET`   | `/api/coursiers/{id}`        | Un coursier                                                                 | -                | `200` + `Coursier`, `404` si id inconnu |
+| `POST`  | `/api/coursiers/{id}/assignLivraisons` | Assigne des livraisons au coursier et calcule sa tournée          | JSON `[id, ...]` | `200` + `Coursier`, `404` coursier/livraison inconnu, `409` pas de livraisons, `422` tournée impossible |
+| `DELETE`| `/api/deleteAllLivraisonsForCoursiers` | Retire les livraisons de tous les coursiers                       | -                | `200`, `409` si pas de carte |
 
 Les deux `upload-*` reçoivent le fichier en `multipart/form-data` (champ `file`), pas en JSON. Les fichiers uploadés ne sont pas enregistrés sur le disque.
 
@@ -176,6 +181,9 @@ Toutes les erreurs de l'API ont le même format :
 | `400` | `ADRESSES_INCONNUES`      | Adresse de la demande absente de la carte (`details.adresses`) |
 | `409` | `CARTE_NON_CHARGEE`       | Action qui demande une carte, avant tout upload de carte  |
 | `409` | `LIVRAISONS_NON_CHARGEES` | Calcul de tournée sans livraisons chargées                |
+| `409` | `AUCUNE_LIVRAISON_ASSIGNEE` | Calcul de tournée d'un coursier sans livraison (`details.coursier`) |
+| `404` | `COURSIER_INCONNU`        | Id de coursier inexistant (`details.coursier`)            |
+| `404` | `LIVRAISONS_INCONNUES`    | Id(s) de livraison inexistant(s) (`details.livraisons`)   |
 | `422` | `TOURNEE_IMPOSSIBLE`      | Arrêts inaccessibles depuis l'entrepôt                    |
 | `422` | `REQUETE_INVALIDE`        | Requête mal construite (ex : champ `file` absent ; `details.erreurs`) |
 | `404`… | `HTTP_404`…              | Route inconnue, méthode non autorisée...                  |

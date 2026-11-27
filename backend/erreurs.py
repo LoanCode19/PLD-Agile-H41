@@ -91,6 +91,41 @@ class LivraisonsNonChargees(DonneesManquantes):
         )
 
 
+class AucuneLivraisonAssignee(DonneesManquantes):
+    """On demande la tournee d'un coursier a qui rien n'a ete assigne."""
+
+    code = "AUCUNE_LIVRAISON_ASSIGNEE"
+
+    def __init__(self, id_coursier: int):
+        super().__init__(
+            f"Aucune livraison assignée au coursier {id_coursier}",
+            details={"coursier": id_coursier},
+        )
+
+
+# --- Ressources introuvables -------------------------------------------------
+
+class CoursierInconnu(ErreurMetier):
+    code = "COURSIER_INCONNU"
+    status = 404
+
+    def __init__(self, id_coursier: int):
+        super().__init__(
+            f"Aucun coursier avec l'id {id_coursier}",
+            details={"coursier": id_coursier},
+        )
+
+
+class LivraisonsInconnues(ErreurMetier):
+    code = "LIVRAISONS_INCONNUES"
+    status = 404
+
+    def __init__(self, ids: list[int]):
+        super().__init__(
+            f"Aucune livraison avec l'id {ids}", details={"livraisons": ids}
+        )
+
+
 # --- Calcul ------------------------------------------------------------------
 
 class TourneeImpossible(ErreurMetier):
