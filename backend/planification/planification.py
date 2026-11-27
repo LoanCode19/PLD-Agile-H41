@@ -1,6 +1,7 @@
 """Point d'entrée de l'API vers le modèle : une carte, des coursiers et la
 demande de livraisons chargée.
 
+Chaque coursier a les livraisons qu'on lui assigne et sa propre tournée.
 Les livraisons de la demande ne sont assignées à aucun coursier au
 chargement : c'est l'API (route assignLivraisons) qui les répartit.
 """
@@ -25,13 +26,14 @@ class Planification:
 
     Attributes:
         carte: le plan de la ville.
-        coursiers: les coursiers par id (le coursier 1 existe par défaut).
+        coursiers: les coursiers par id ; vide tant qu'on n'en a pas créé
+            (sans coursier, aucune tournée ne peut être calculée).
         demande: la demande chargée ; None tant qu'aucun fichier ne l'a été.
     """
 
     def __init__(self, carte: RouteGraph):
         self.carte = carte
-        self.coursiers = {1: Coursier(1)}
+        self.coursiers: dict[int, Coursier] = {}
         self.demande: DemandeLivraisons | None = None
 
     def coursier(self, id: int) -> Coursier:

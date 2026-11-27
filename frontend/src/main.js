@@ -1,4 +1,4 @@
-import { displayLivraisons } from './displayLivraisons.js';
+import { displayLivraisons, lireAssignations } from './displayLivraisons.js';
 import { displayTournees } from './displayTournees.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -23,7 +23,7 @@ document.querySelector('#app').innerHTML = `
     <div id="erreur-livraisons" style="color: red; font-size: 15px; margin-top: 4px;"></div>
   </div>
 
-  <button id="bouton-tournees" disabled>Afficher les tournées</button>
+  <button id="bouton-tournees" disabled>Calculer les tournées</button>
 
   <div id="zone-tournees"></div>
   <h2>Carte de Lyon</h2>
@@ -45,6 +45,10 @@ const zoneTournees = document.getElementById('zone-tournees');
 const zoneLivraisons = document.getElementById('livraisons');
 const erreurLivraisons = document.getElementById('erreur-livraisons');
 let carteChargee = false;
+
+// Demande renvoyée par le dernier upload de livraisons réussi (null sinon) :
+// gardée pour réafficher la liste quand les livreurs changent.
+let demandeCourante = null;
 
 // Initialisation de la carte de Lyon
 const map = L.map('map').setView([45.7640, 4.8357], 13);
@@ -75,7 +79,12 @@ async function uploader(input, url) {
   return appelerApi(url, { method: 'POST', body: formData });
 }
 
-// 1. Carte : une nouvelle carte oublie les livraisons précédentes.
+// Réaffiche la liste des livraisons avec les coursiers donnés
+// (rien à faire tant qu'aucune livraison n'est chargée).
+function afficherLivraisons(coursiers) {
+  if (demandeCourante) displayLivraisons(demandeCourante, coursiers, zoneLivraisons);
+}
+
 // 1. Carte : l'upload part dès qu'un fichier est choisi.
 // Une nouvelle carte oublie les livraisons précédentes.
 fileInputCarte.addEventListener('change', async () => {
@@ -86,6 +95,7 @@ fileInputCarte.addEventListener('change', async () => {
     carteChargee = true;
     erreurLivraisons.textContent = '';
     effacerTournee();
+    demandeCourante = null;
     zoneLivraisons.textContent = 'Aucune livraison chargée.';
     fileInputLivraison.value = ''; // réinitialise le champ pour forcer l'utilisateur à re-sélectionner un fichier
     boutonTournees.disabled = true;
@@ -100,7 +110,9 @@ fileInputCarte.addEventListener('change', async () => {
   }
 });
 
-// 2. Livraisons : l'upload part dès qu'un fichier est choisi ; affichées en bas de la page.
+// 2. Livraisons : l'upload part dès qu'un fichier est choisi ; affichées en
+// bas de la page, avec un choix de coursier pour chacune. Le backend a effacé
+// les anciennes assignations.
 fileInputLivraison.addEventListener('change', async () => {
   if (fileInputLivraison.files.length === 0) return; // l'utilisateur a annulé la sélection du fichier
 
@@ -113,38 +125,70 @@ fileInputLivraison.addEventListener('change', async () => {
   }
   erreurLivraisons.textContent = '';
 
+  effacerTournee();
+  zoneLivraisons.replaceChildren(); // les anciens choix ne valent plus
   try {
-    const data = await uploader(fileInputLivraison, `${API}/upload-livraisons`);
-    effacerTournee();
-    displayLivraisons(data, zoneLivraisons);
-    boutonTournees.disabled = false;
-    statut.textContent = 'Livraisons chargées. Vous pouvez afficher la tournée.';
-    statut.style.color = '#333';
+    demandeCourante = await uploader(fileInputLivraison, `${API}/upload-livraisons`);
   } catch (e) {
     afficherErreur(e, statut);
-    effacerTournee();
     // En cas d'erreur le backend n'a plus de livraisons chargées.
+    demandeCourante = null;
     zoneLivraisons.textContent = 'Aucune livraison chargée.';
     boutonTournees.disabled = true;
     fileInputLivraison.value = ''; // pour que re-choisir le même fichier (corrigé) relance l'upload
+    return;
   }
-});
 
-// 3. Tournée : calculée par l'API à partir de la carte et des livraisons uploadées.
-boutonTournees.addEventListener('click', async () => {
   try {
-    const data = await appelerApi(`${API}/tournee`);
-    displayTournees(data, tourneeLayer, zoneTournees);
-    statut.textContent = 'Tournée affichée.';
-    statut.style.color = '#333';
+    afficherLivraisons(await appelerApi(`${API}/coursiers`));
   } catch (e) {
-    afficherErreur(e, zoneTournees);
-    // Le backend n'a plus de carte ou de livraisons : rien à afficher tant
-    // qu'on ne les a pas (re)chargées.
-    if (e.code === 'CARTE_NON_CHARGEE' || e.code === 'LIVRAISONS_NON_CHARGEES') {
-      boutonTournees.disabled = true;
+    afficherErreur(e, statut);
+    return;
+  }
+  boutonTournees.disabled = false;
+  statut.textContent =
+    'Livraisons chargées. Choisissez un coursier pour chacune, puis calculez les tournées.';
+  statut.style.color = '#333';
+});
+
+// 3. Calcul : on envoie les choix des listes déroulantes au backend
+// (on vide toutes les assignations, puis on assigne coursier par coursier),
+// puis on affiche les tournées qu'il a calculées.
+boutonTournees.addEventListener('click', async () => {
+  const assignations = lireAssignations(zoneLivraisons);
+  if (assignations.size === 0) {
+    statut.textContent =
+      'Assignez au moins une livraison à un livreur (ajoutez des livreurs si la liste est vide).';
+    return;
+  }
+
+  boutonTournees.disabled = true;
+  statut.textContent = 'Calcul des tournées en cours...';
+  try {
+    // Le vidage doit être terminé avant les assignations (await).
+    await appelerApi(`${API}/deleteAllLivraisonsForCoursiers`, { method: 'DELETE' });
+    for (const [idCoursier, idsLivraisons] of assignations) {
+      await appelerApi(`${API}/coursiers/${idCoursier}/assignLivraisons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(idsLivraisons)
+      });
     }
+    displayTournees(await appelerApi(`${API}/tournee`), tourneeLayer, zoneTournees);
+    statut.textContent = 'Tournées calculées.';
+    statut.style.color = '#333';
+    boutonTournees.disabled = false;
+  } catch (e) {
+    // Une partie des assignations a pu être faite : on n'affiche rien de faux.
+    effacerTournee();
+    afficherErreur(e, zoneTournees);
+    // Le backend n'a plus de carte ou de livraisons : rien à recalculer tant
+    // qu'on ne les a pas (re)chargées.
+    const plusDeDonnees = e.code === 'CARTE_NON_CHARGEE' || e.code === 'LIVRAISONS_NON_CHARGEES';
+    boutonTournees.disabled = plusDeDonnees;
   }
 });
 
-setupLivreurs(document.getElementById('livreurs'));
+// Quand les livreurs changent, les listes déroulantes sont mises à jour
+// (les choix en cours sont gardés).
+setupLivreurs(document.getElementById('livreurs'), { onChange: afficherLivraisons });

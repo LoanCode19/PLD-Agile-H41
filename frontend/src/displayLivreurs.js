@@ -1,7 +1,9 @@
 import './displayLivreurs.css';
 import { API, appelerApi } from './api.js';
 
-export function setupLivreurs(zone) {
+// `onChange(coursiers)` est appelé à chaque fois que la liste des coursiers
+// est relue depuis le backend (après un ajout ou un clic sur « Afficher »).
+export function setupLivreurs(zone, { onChange } = {}) {
   zone.innerHTML = `
     <section class="livreur-section">
       <div class="livreur-header">
@@ -132,6 +134,7 @@ export function setupLivreurs(zone) {
     try {
       coursiersConnus = await appelerApi(`${API}/coursiers`);
       afficherTable();
+      onChange?.(coursiersConnus);
       return true;
     } catch (error) {
       afficherMessage(error.message, 'error');

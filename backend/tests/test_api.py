@@ -48,6 +48,13 @@ def client_avec_carte(client):
     return client
 
 
+def ajouter_coursier(client):
+    """Crée le coursier 1 (une planification démarre sans coursier)."""
+    reponse = client.post("/api/add-coursiers", json=[{"prenom": "Marie", "nom": "Dupont"}])
+    assert reponse.status_code == 200
+    return client
+
+
 @pytest.fixture
 def client_avec_livraisons(client_avec_carte):
     reponse = upload(client_avec_carte, "/api/upload-livraisons", DEMANDE_PETIT1)
@@ -147,6 +154,7 @@ class TestTournee:
 
 
     def test_coursier_sans_livraison_a_une_tournee_nulle(self, client_avec_livraisons):
+        ajouter_coursier(client_avec_livraisons)
         coursiers = client_avec_livraisons.get("/api/tournee").json()
         assert [c["tournee"] for c in coursiers] == [None]
 
@@ -158,10 +166,12 @@ class TestAssignation:
         erreur(client_avec_livraisons.get("/api/coursiers/42"), 404, "COURSIER_INCONNU")
 
     def test_livraison_inconnue(self, client_avec_livraisons):
+        ajouter_coursier(client_avec_livraisons)
         reponse = client_avec_livraisons.post("/api/coursiers/1/assignLivraisons", json=[1, 99])
         assert erreur(reponse, 404, "LIVRAISONS_INCONNUES")["details"] == {"livraisons": [99]}
 
     def test_sans_livraisons_chargees(self, client_avec_carte):
+        ajouter_coursier(client_avec_carte)
         reponse = client_avec_carte.post("/api/coursiers/1/assignLivraisons", json=[1])
         erreur(reponse, 409, "LIVRAISONS_NON_CHARGEES")
 
@@ -171,6 +181,7 @@ class TestAssignation:
         def impossible(self, id):
             raise TourneeImpossible("arrêts inaccessibles")
         monkeypatch.setattr(api.Planification, "calculer_tournee", impossible)
+        ajouter_coursier(client_avec_livraisons)
         reponse = client_avec_livraisons.post("/api/coursiers/1/assignLivraisons", json=[1])
         erreur(reponse, 422, "TOURNEE_IMPOSSIBLE")
         assert api.planification.coursiers[1].livraisons == []
@@ -181,6 +192,7 @@ class TestFormatDesErreurs:
         def bug(self, id):
             raise TypeError("bug de programmation")
         monkeypatch.setattr(api.Planification, "calculer_tournee", bug)
+        ajouter_coursier(client_avec_livraisons)
         reponse = client_avec_livraisons.post(
             "/api/coursiers/1/assignLivraisons", json=[1],
             headers={"Origin": "http://localhost:5173"},
