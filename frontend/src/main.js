@@ -21,6 +21,8 @@ document.querySelector('#app').innerHTML = `
   <h2>Carte de Lyon</h2>
   <div id="map" style="height: 500px;"></div>
 
+  <div id="livreurs"></div>
+
   <section>
     <h2>Liste des livraisons</h2>
     <div id="livraisons">Aucune livraison chargée.</div>
