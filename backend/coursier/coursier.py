@@ -16,7 +16,8 @@ class Coursier:
     une livraison qui n'est dans la liste d'aucun coursier.
 
     Attributes:
-        id: numéro unique du coursier.
+        id: numéro unique du coursier ; None tant que le backend ne lui en a
+            pas attribué un (le frontend n'envoie pas d'id).
         nom, prenom: identité du coursier (vides tant qu'on ne les a pas
             saisies).
         livraisons: livraisons assignées à ce coursier.
@@ -24,7 +25,7 @@ class Coursier:
             n'a été calculée.
     """
 
-    id: int
+    id: int | None = None
     nom: str = ""
     prenom: str = ""
     livraisons: list[Livraison] = field(default_factory=list)

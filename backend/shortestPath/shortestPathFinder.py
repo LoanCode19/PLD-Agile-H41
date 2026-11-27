@@ -11,15 +11,29 @@ Etat = tuple[int, int]  # (masque des arrêts visités, dernier arrêt)
 
 
 class ShortestPathFinder:
-    def __init__(self, graph: RouteGraph, demande: DemandeLivraisons):
+    def __init__(
+        self,
+        graph: RouteGraph,
+        demande: DemandeLivraisons,
+        livraisons: list[Livraison] | None = None,
+    ):
+        """
+        Args:
+            demande: donne l'entrepôt et l'heure de départ.
+            livraisons: les livraisons à faire (celles d'un coursier) ;
+                si None, toutes celles de la demande.
+        """
         self.graph = graph
         self.demande_livraisons = demande
+        self.livraisons: list[Livraison] = list(
+            demande.livraisons if livraisons is None else livraisons
+        )
         self.adresse_entrepot: int = demande.adresse_entrepot
         #   0      entrepôt
         #   2i + 1 enlèvement de la livraison i
         #   2i + 2 livraison de la livraison i
         self.arrets: list[int] = [self.adresse_entrepot]
-        for livraison in demande.livraisons:
+        for livraison in self.livraisons:
             self.arrets.append(livraison.adresse_enlevement)
             self.arrets.append(livraison.adresse_livraison)
 
@@ -241,7 +255,7 @@ class ShortestPathFinder:
         """Durée (s) passée sur place à cet arrêt."""
         if arret == 0:
             return 0  # entrepôt
-        livraison = self.demande_livraisons.livraisons[(arret - 1) // 2]
+        livraison = self.livraisons[(arret - 1) // 2]
         est_enlevement = arret % 2 == 1
         if est_enlevement:
             return livraison.duree_enlevement
@@ -253,7 +267,7 @@ class ShortestPathFinder:
             return self._passage(
                 self.adresse_entrepot, TypeArret.ENTREPOT, None, horaire
             )
-        livraison = self.demande_livraisons.livraisons[(arret - 1) // 2]
+        livraison = self.livraisons[(arret - 1) // 2]
         est_enlevement = arret % 2 == 1
         type = TypeArret.ENLEVEMENT if est_enlevement else TypeArret.LIVRAISON
         return self._passage(self.arrets[arret], type, livraison, horaire)

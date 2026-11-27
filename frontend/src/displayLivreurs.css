@@ -1,0 +1,62 @@
+.livreur-section { max-width: 720px; margin: 24px 0; }
+.livreur-header { display: flex; align-items: center; gap: 12px; }
+.livreur-header h2 { margin: 0; }
+.livreur-list { display: grid; gap: 12px; margin: 16px 0; }
+.livreur-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.livreur-card-titre { grid-column: 1 / -1; }
+.livreur-champs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.livreur-card label { display: grid; gap: 6px; font-weight: 700; }
+.livreur-card input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 7px;
+  font: inherit;
+}
+.livreur-card input:focus { border-color: #52525b; outline: 2px solid #d4d4d8; }
+.livreur-add-card {
+  width: 100%;
+  padding: 16px;
+  border: 2px dashed #a1a1aa;
+  border-radius: 10px;
+  background: white;
+  color: #27272a;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+.livreur-primary, .livreur-remove {
+  border: 0;
+  border-radius: 7px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+.livreur-primary { background: #27272a; color: white; }
+.livreur-primary:disabled { opacity: 0.55; cursor: wait; }
+.livreur-remove { background: #f4f4f5; color: #27272a; }
+.livreur-actions { display: flex; gap: 12px; }
+.livreur-add-actions { margin-top: 8px; }
+.livreur-message { min-height: 24px; font-weight: 700; }
+.livreur-message.error { color: #b91c1c; }
+.livreur-message.success { color: #15803d; }
+.livreur-table { display: grid; gap: 8px; }
+.livreur-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}

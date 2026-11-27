@@ -2,6 +2,7 @@ import { displayLivraisons } from './displayLivraisons.js';
 import { displayTournees } from './displayTournees.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { setupLivreurs } from './displayLivreurs.js';
 
 const API = 'http://localhost:8080/api';
 
@@ -20,6 +21,8 @@ document.querySelector('#app').innerHTML = `
   <div id="zone-tournees"></div>
   <h2>Carte de Lyon</h2>
   <div id="map" style="height: 500px;"></div>
+
+  <div id="livreurs"></div>
 
   <section>
     <h2>Liste des livraisons</h2>
@@ -118,3 +121,5 @@ boutonTournees.addEventListener('click', async () => {
     zoneTournees.textContent = "Erreur : impossible de contacter l'API (backend démarré ?)";
   }
 });
+
+setupLivreurs(document.getElementById('livreurs'));
