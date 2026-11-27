@@ -5,6 +5,44 @@ import 'leaflet/dist/leaflet.css';
 
 const API = 'http://localhost:8080/api';
 
+// === Gestion centralisée des erreurs ===
+export class ErreurApi extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.code = code;
+    this.details = details;
+  }
+}
+
+export async function appelerApi(url, options = {}) {
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch {
+    throw new ErreurApi('RESEAU', "Impossible de contacter l'API (backend démarré ?)");
+  }
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const e = data?.erreur;
+    throw new ErreurApi(
+      e?.code ?? 'INCONNUE',
+      e?.message ?? `Erreur ${response.status}`,
+      e?.details
+    );
+  }
+  return data;
+}
+
+function afficherErreur(e, zoneAffichage) {
+  if (!(e instanceof ErreurApi)) {
+    zoneAffichage.textContent = 'Erreur inconnue';
+    return;
+  }
+  zoneAffichage.textContent = `Erreur : ${e.message}`;
+  zoneAffichage.style.color = '#d32f2f';
+}
+
 document.querySelector('#app').innerHTML = `
   <div style="margin-bottom: 20px;">
     1. <input type="file" id="fileInputCarte" accept=".xml" />
@@ -56,65 +94,64 @@ function effacerTournee() {
 }
 
 // Envoie le fichier choisi dans `input` à l'API (champ "file").
-// Renvoie le JSON de la réponse, ou null en cas d'erreur (affichée dans le statut).
+// Renvoie le JSON de la réponse, ou lance une ErreurApi en cas d'erreur.
 async function uploader(input, url) {
   if (input.files.length === 0) {
-    statut.textContent = "Veuillez d'abord sélectionner un fichier.";
-    return null;
+    throw new ErreurApi('FICHIER_MANQUANT', "Veuillez d'abord sélectionner un fichier.");
   }
   const formData = new FormData();
   formData.append('file', input.files[0]);
   statut.textContent = 'Upload en cours...';
 
-  try {
-    const response = await fetch(url, { method: 'POST', body: formData });
-    const data = await response.json();
-    if (!response.ok) {
-      statut.textContent = `Erreur : ${data.detail}`;
-      return null;
-    }
-    return data;
-  } catch (error) {
-    statut.textContent = `Erreur : impossible de contacter l'API (backend démarré ?)`;
-    return null;
-  }
+  const formData2 = new FormData();
+  formData2.append('file', input.files[0]);
+  return appelerApi(url, { method: 'POST', body: formData2 });
 }
 
 // 1. Carte : une nouvelle carte oublie les livraisons précédentes.
 boutonCarte.addEventListener('click', async () => {
-  const data = await uploader(fileInputCarte, `${API}/upload-carte`);
-  if (!data) return;
-
-  effacerTournee();
-  zoneLivraisons.textContent = 'Aucune livraison chargée.';
-  boutonLivraisons.disabled = false;
-  boutonTournees.disabled = true;
-  statut.textContent =
-    `Carte chargée (${data.intersections} intersections). Uploadez maintenant les livraisons.`;
+  try {
+    const data = await uploader(fileInputCarte, `${API}/upload-carte`);
+    effacerTournee();
+    zoneLivraisons.textContent = 'Aucune livraison chargée.';
+    boutonLivraisons.disabled = false;
+    boutonTournees.disabled = true;
+    statut.textContent =
+      `Carte chargée (${data.intersections} intersections). Uploadez maintenant les livraisons.`;
+    statut.style.color = '#333';
+  } catch (e) {
+    afficherErreur(e, statut);
+  }
 });
 
 // 2. Livraisons : affichées en bas de la page.
 boutonLivraisons.addEventListener('click', async () => {
-  const data = await uploader(fileInputLivraison, `${API}/upload-livraisons`);
-  effacerTournee();
-  if (!data) {
+  try {
+    const data = await uploader(fileInputLivraison, `${API}/upload-livraisons`);
+    effacerTournee();
+    displayLivraisons(data, zoneLivraisons);
+    boutonTournees.disabled = false;
+    statut.textContent = 'Livraisons chargées. Vous pouvez afficher la tournée.';
+    statut.style.color = '#333';
+  } catch (e) {
+    afficherErreur(e, statut);
     // En cas d'erreur le backend n'a plus de livraisons chargées.
     zoneLivraisons.textContent = 'Aucune livraison chargée.';
     boutonTournees.disabled = true;
-    return;
   }
-
-  displayLivraisons(data, zoneLivraisons);
-  boutonTournees.disabled = false;
-  statut.textContent = 'Livraisons chargées. Vous pouvez afficher la tournée.';
 });
 
 // 3. Tournée : calculée par l'API à partir de la carte et des livraisons uploadées.
 boutonTournees.addEventListener('click', async () => {
   try {
-    const response = await fetch(`${API}/tournee`);
-    displayTournees(await response.json(), tourneeLayer, zoneTournees);
-  } catch (error) {
-    zoneTournees.textContent = "Erreur : impossible de contacter l'API (backend démarré ?)";
+    const data = await appelerApi(`${API}/tournee`);
+    displayTournees(data, tourneeLayer, zoneTournees);
+    statut.textContent = 'Tournée affichée.';
+    statut.style.color = '#333';
+  } catch (e) {
+    afficherErreur(e, zoneTournees);
+    if (e.code === 'ETAT_INVALIDE') {
+      boutonTournees.disabled = true;
+    }
   }
 });
