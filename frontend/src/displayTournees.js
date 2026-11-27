@@ -2,14 +2,18 @@ import L from 'leaflet';
 import { formatTime } from './displayLivraisons.js';
 
 // Icônes issues de Tabler Icons (https://tabler.io/icons, licence MIT) :
-// "package-export" pour l'enlèvement, "package-import" pour la livraison,
-// "building-warehouse" pour l'entrepôt.
-// Les deux icônes de colis dessinent le même colis, seule la flèche change.
+// "package" pour le colis, "building-warehouse" pour l'entrepôt.
+// Enlèvement et livraison : le même colis, réduit et décalé à gauche, avec à
+// sa droite une grande flèche verticale bien séparée (sinon elle se confond
+// avec les arêtes du cube) : vers le haut = on prend le colis, vers le bas =
+// on le dépose. stroke-width 2.5 = 2 / 0.8 : le trait du colis garde
+// l'épaisseur des autres malgré la réduction.
 const SVG_COLIS =
-  '<path d="M12 21l-8 -4.5v-9l8 -4.5l8 4.5v4.5" />' +
-  '<path d="M12 12l8 -4.5" /><path d="M12 12v9" /><path d="M12 12l-8 -4.5" />';
-const ENLEVEMENT = '<path d="M15 18h7" /><path d="M19 15l3 3l-3 3" />'; // flèche sortante
-const LIVRAISON = '<path d="M22 18h-7" /><path d="M18 15l-3 3l3 3" />';  // flèche entrante
+  '<g transform="translate(-1.5 2.4) scale(.8)" stroke-width="2.5">' +
+  '<path d="M12 3l8 4.5v9l-8 4.5l-8 -4.5v-9z" />' +
+  '<path d="M12 12l8 -4.5" /><path d="M12 12v9" /><path d="M12 12l-8 -4.5" /></g>';
+const ENLEVEMENT = '<path d="M20 21v-17" /><path d="M17 7l3 -3l3 3" />'; // flèche vers le haut
+const LIVRAISON = '<path d="M20 3v17" /><path d="M17 17l3 3l3 -3" />';  // flèche vers le bas
 const SVG_ENTREPOT =
   '<path d="M3 21v-13l9 -4l9 4v13" /><path d="M13 13h4v8h-10v-6h6" />' +
   '<path d="M13 21v-9a1 1 0 0 0 -1 -1h-2a1 1 0 0 0 -1 1v3" />';
